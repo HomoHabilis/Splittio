@@ -17,6 +17,7 @@
     "survey": "node scripts/relay-survey.mjs"
   },
   "dependencies": {
+    "@noble/curves": "^2.0.1",
     "@noble/hashes": "^2.0.1",
     "idb": "^8.0.4",
     "nostr-tools": "^2.26.1",

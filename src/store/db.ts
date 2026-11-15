@@ -28,6 +28,11 @@ export type StoredEvent = {
   /** Relays known to hold this event (accepted it or sent it to us). */
   relays: string[]
   receivedAt: number
+  /**
+   * Published by this device. Events are signed with throwaway keys, so the pubkey no
+   * longer tells; events stored before that fall back to comparing with the device key.
+   */
+  mine?: boolean
 }
 
 export type StoredOp = Op & { eventId?: string }

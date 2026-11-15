@@ -130,6 +130,11 @@ export class GroupSync {
     this.gc = groupCrypto(hexToBytes(o.group.key))
   }
 
+  /** Events this device published (older ones were signed with the device key itself). */
+  private isMine(e: StoredEvent): boolean {
+    return e.mine === true || e.event.pubkey === this.device.pubkey
+  }
+
   private nowSec() {
     return Math.floor(this.now() / 1000)
   }
@@ -141,7 +146,7 @@ export class GroupSync {
     this.started = true
     this.outboxCount = (await this.store.outbox(this.groupId)).length
     const events = await this.store.groupEvents(this.groupId)
-    this.unconfirmed = events.filter((e) => e.event.pubkey === this.device.pubkey && e.relays.length === 0).length
+    this.unconfirmed = events.filter((e) => this.isMine(e) && e.relays.length === 0).length
     this.opCount = (await this.store.groupOps(this.groupId)).length
     for (const url of this.group.relays) this.addRelay(url, false)
     this.cursorTimer = setInterval(() => void this.saveCursors(), 10_000)
@@ -282,7 +287,7 @@ export class GroupSync {
       if (known) {
         if (relayUrl && !known.relays.includes(relayUrl)) {
           await this.store.addEventRelays(ev.id, [relayUrl])
-          if (known.relays.length === 0 && known.event.pubkey === this.device.pubkey) {
+          if (known.relays.length === 0 && this.isMine(known)) {
             this.unconfirmed = Math.max(0, this.unconfirmed - 1)
             this.emitStatus()
           }
@@ -404,10 +409,10 @@ export class GroupSync {
       if (this.openRelays().length === 0) return
       const ops = (await this.store.outbox(this.groupId)).sort((a, b) => (a.hlc < b.hlc ? -1 : 1))
       if (ops.length === 0) return
-      for (const batch of await batchOps(ops, this.capFor())) {
-        const ev = signEvent(this.gc, 'ops', batch.plaintext, this.device.sk, this.nowSec())
+      for (const batch of await batchOps(this.gc, ops, this.device, this.capFor())) {
+        const ev = signEvent(this.gc, 'ops', batch.plaintext, this.nowSec())
         await this.store.commitOutboxEvent(
-          { id: ev.id, groupId: this.groupId, kind: 'ops', event: ev, relays: [], receivedAt: this.now() },
+          { id: ev.id, groupId: this.groupId, kind: 'ops', event: ev, relays: [], receivedAt: this.now(), mine: true },
           batch.ops,
         )
         this.outboxCount = Math.max(0, this.outboxCount - batch.ops.length)
@@ -450,7 +455,7 @@ export class GroupSync {
     if (accepted.length) {
       const before = await this.store.getEvent(ev.id)
       await this.store.addEventRelays(ev.id, accepted)
-      if (before && before.relays.length === 0 && ev.pubkey === this.device.pubkey) this.unconfirmed = Math.max(0, this.unconfirmed - 1)
+      if (before && before.relays.length === 0 && this.isMine(before)) this.unconfirmed = Math.max(0, this.unconfirmed - 1)
     }
     this.emitStatus()
     return accepted
@@ -460,7 +465,7 @@ export class GroupSync {
   private async resendRecent(url: string) {
     const since = this.nowSec() - 7 * 86400
     const events = (await this.store.groupEvents(this.groupId))
-      .filter((e) => !e.relays.includes(url) && e.event.created_at >= since && (e.event.pubkey === this.device.pubkey || e.relays.length === 0))
+      .filter((e) => !e.relays.includes(url) && e.event.created_at >= since && (this.isMine(e) || e.relays.length === 0))
       .sort((a, b) => a.event.created_at - b.event.created_at)
     if (events.length) this.enqueueRepair(url, events.map((e) => e.id))
   }
@@ -637,8 +642,8 @@ export class GroupSync {
       const snap = buildSnapshot(this.groupId, ops, this.now())
       const chunks = await chunkSnapshot(snap)
       for (const c of chunks) {
-        const ev = signEvent(this.gc, 'snap', await encodePlaintext(c), this.device.sk, this.nowSec(), `s:${c.id}:${c.i}`)
-        await this.store.ingestEvent({ id: ev.id, groupId: this.groupId, kind: 'snap', event: ev, relays: [], receivedAt: this.now() }, [])
+        const ev = signEvent(this.gc, 'snap', await encodePlaintext(c), this.nowSec(), `s:${c.id}:${c.i}`)
+        await this.store.ingestEvent({ id: ev.id, groupId: this.groupId, kind: 'snap', event: ev, relays: [], receivedAt: this.now(), mine: true }, [])
         await this.publish(ev)
       }
       this.group = { ...this.group, lastSnapshotOps: ops.length }
