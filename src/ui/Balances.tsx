@@ -31,6 +31,47 @@ export function Balances({ view }: { view: GroupView }) {
   const flagged = live.filter((e) => e.inconsistent).length
   return (
     <div>
+      <Section title={t('Suggested reimbursements')}>
+        {reimbursements.length === 0 && <p class="empty">{t('Everyone is settled up. 🎉')}</p>}
+        <ul class="list">
+          {reimbursements.map((r) => {
+            const href = `#/g/${gid}/e/new?from=${r.from}&to=${r.to}&amount=${r.amount}`
+            const amount = formatMoney(r.amount, currency)
+            // The payer's pill is red, the payee's green; a household's pill names its members.
+            const party = (id: string, role = '') => {
+              const list = members.has(id) ? [id, ...members.get(id)!.filter((m) => m !== id)].map((m) => names.get(m) ?? '?') : [names.get(id) ?? '?']
+              return (
+                <span class="block">
+                  <span class={'pill' + (list.length > 1 ? ' family' : '') + ' ' + role} title={list.length > 1 ? t('Household') : undefined}>
+                    {list.length > 1 && <span aria-hidden="true">👪 </span>}
+                    {list.join(' · ')}
+                  </span>
+                </span>
+              )
+            }
+            return (
+              <li key={r.from + r.to} class="list-item">
+                <span class="grow">
+                  {party(r.from, 'payer')}
+                  <span class="block owes">
+                    <span class="money-chip" title={t('owes')}>
+                      <span aria-hidden="true">⬇ 💸 </span>
+                      <span class="sr-only">{t('owes')} </span>
+                      {amount}
+                    </span>
+                  </span>
+                  {party(r.to, 'payee')}
+                </span>
+                <span class="pay">
+                  <a class="btn small" href={href}>
+                    {t('Mark as paid')}
+                  </a>
+                </span>
+              </li>
+            )
+          })}
+        </ul>
+      </Section>
       <Section title={t('Balances')}>
         {flagged > 0 && <p class="notice small">⚠ {t('{n} expenses have a split that doesn’t add up; they are applied proportionally.', { n: flagged })}</p>}
         <ul class="balances">
@@ -57,42 +98,6 @@ export function Balances({ view }: { view: GroupView }) {
                 <Bar value={total} max={max} tone={total >= 0 ? 'pos' : 'neg'} />
               </li>,
             ]
-          })}
-        </ul>
-      </Section>
-      <Section title={t('Suggested reimbursements')}>
-        {reimbursements.length === 0 && <p class="empty">{t('Everyone is settled up. 🎉')}</p>}
-        <ul class="list">
-          {reimbursements.map((r) => {
-            const href = `#/g/${gid}/e/new?from=${r.from}&to=${r.to}&amount=${r.amount}`
-            const amount = formatMoney(r.amount, currency)
-            // A household is one tinted pill naming its members; a person is a plain pill.
-            const party = (id: string) => {
-              const list = members.has(id) ? [id, ...members.get(id)!.filter((m) => m !== id)].map((m) => names.get(m) ?? '?') : [names.get(id) ?? '?']
-              return (
-                <span class="block">
-                  <span class={'pill' + (list.length > 1 ? ' family' : '')} title={list.length > 1 ? t('Household') : undefined}>
-                    {list.length > 1 && <span aria-hidden="true">👪 </span>}
-                    {list.join(' · ')}
-                  </span>
-                </span>
-              )
-            }
-            return (
-              <li key={r.from + r.to} class="list-item">
-                <span class="grow">
-                  {party(r.from)}
-                  <span class="block muted small owes">{t('owes')}</span>
-                  {party(r.to)}
-                </span>
-                <span class="pay">
-                  <strong class="block amount">{amount}</strong>
-                  <a class="btn small" href={href}>
-                    {t('Mark as paid')}
-                  </a>
-                </span>
-              </li>
-            )
           })}
         </ul>
       </Section>
