@@ -63,17 +63,37 @@ export function Balances({ view }: { view: GroupView }) {
       <Section title={t('Suggested reimbursements')}>
         {reimbursements.length === 0 && <p class="empty">{t('Everyone is settled up. 🎉')}</p>}
         <ul class="list">
-          {reimbursements.map((r) => (
-            <li key={r.from + r.to} class="list-item">
-              <span class="grow">
-                {t('{from} owes {to}', { from: label(r.from), to: label(r.to) })}
-                <strong class="block">{formatMoney(r.amount, currency)}</strong>
-              </span>
-              <a class="btn small" href={`#/g/${gid}/e/new?from=${r.from}&to=${r.to}&amount=${r.amount}`}>
-                {t('Mark as paid')}
-              </a>
-            </li>
-          ))}
+          {reimbursements.map((r) => {
+            const href = `#/g/${gid}/e/new?from=${r.from}&to=${r.to}&amount=${r.amount}`
+            const amount = formatMoney(r.amount, currency)
+            // A household is one tinted pill naming its members; a person is a plain pill.
+            const party = (id: string) => {
+              const list = members.has(id) ? [id, ...members.get(id)!.filter((m) => m !== id)].map((m) => names.get(m) ?? '?') : [names.get(id) ?? '?']
+              return (
+                <span class="block">
+                  <span class={'pill' + (list.length > 1 ? ' family' : '')} title={list.length > 1 ? t('Household') : undefined}>
+                    {list.length > 1 && <span aria-hidden="true">👪 </span>}
+                    {list.join(' · ')}
+                  </span>
+                </span>
+              )
+            }
+            return (
+              <li key={r.from + r.to} class="list-item">
+                <span class="grow">
+                  {party(r.from)}
+                  <span class="block muted small owes">{t('owes')}</span>
+                  {party(r.to)}
+                </span>
+                <span class="pay">
+                  <strong class="block amount">{amount}</strong>
+                  <a class="btn small" href={href}>
+                    {t('Mark as paid')}
+                  </a>
+                </span>
+              </li>
+            )
+          })}
         </ul>
       </Section>
       <Section title={t('Totals')}>
