@@ -27,6 +27,16 @@ export function Balances({ view }: { view: GroupView }) {
   people.forEach((p, i) => firstAt.has(reps.get(p.id)!) || firstAt.set(reps.get(p.id)!, i))
   people.sort((a, b) => firstAt.get(reps.get(a.id)!)! - firstAt.get(reps.get(b.id)!)!)
   const shown = new Set<string>()
+  // Suggestions grouped by who receives, largest first; my own lines come first in each group.
+  const myRep = record.me ? reps.get(record.me) ?? record.me : undefined
+  const byRecipient = [...new Set(reimbursements.map((r) => r.to))]
+    .map((to) => {
+      const items = reimbursements
+        .filter((r) => r.to === to)
+        .sort((a, b) => Number(b.from === myRep) - Number(a.from === myRep) || b.amount - a.amount || (label(a.from) < label(b.from) ? -1 : 1))
+      return { to, items, total: items.reduce((s, r) => s + r.amount, 0) }
+    })
+    .sort((a, b) => Number(b.to === myRep) - Number(a.to === myRep) || Number(b.items.some((r) => r.from === myRep)) - Number(a.items.some((r) => r.from === myRep)) || b.total - a.total)
   const gid = state.group.id
   const flagged = live.filter((e) => e.inconsistent).length
   return (
@@ -62,19 +72,34 @@ export function Balances({ view }: { view: GroupView }) {
       </Section>
       <Section title={t('Suggested reimbursements')}>
         {reimbursements.length === 0 && <p class="empty">{t('Everyone is settled up. 🎉')}</p>}
-        <ul class="list">
-          {reimbursements.map((r) => (
-            <li key={r.from + r.to} class="list-item">
-              <span class="grow">
-                {t('{from} owes {to}', { from: label(r.from), to: label(r.to) })}
-                <strong class="block">{formatMoney(r.amount, currency)}</strong>
+        {reimbursements.length > 0 && (
+          <p class="muted small">{t('{n} transfers settle everyone up, grouped by who receives the money.', { n: reimbursements.length })}</p>
+        )}
+        {byRecipient.map(({ to, total, items }) => (
+          <div key={to} class={'settle' + (to === myRep ? ' mine' : '')}>
+            <div class="settle-head">
+              <span class="name">
+                {t('{name} receives', { name: label(to) })}
+                {to === myRep && <span class="muted small"> ({t('me')})</span>}
               </span>
-              <a class="btn small" href={`#/g/${gid}/e/new?from=${r.from}&to=${r.to}&amount=${r.amount}`}>
-                {t('Mark as paid')}
-              </a>
-            </li>
-          ))}
-        </ul>
+              <span class="value pos">{formatMoney(total, currency)}</span>
+            </div>
+            <ul class="settle-rows">
+              {items.map((r) => (
+                <li key={r.from} class={r.from === myRep ? 'mine' : ''}>
+                  <span class="grow">
+                    {t('from {name}', { name: label(r.from) })}
+                    {r.from === myRep && <span class="muted small"> ({t('me')})</span>}
+                  </span>
+                  <span class="value">{formatMoney(r.amount, currency)}</span>
+                  <a class="btn small" href={`#/g/${gid}/e/new?from=${r.from}&to=${r.to}&amount=${r.amount}`} aria-label={t('{from} owes {to}', { from: label(r.from), to: label(r.to) })}>
+                    {t('Mark as paid')}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </Section>
       <Section title={t('Totals')}>
         <dl class="totals">
