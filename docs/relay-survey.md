@@ -20,9 +20,11 @@ The probe event is shaped like a Splittio batch: kind 30078, `d` and `z` tags, ~
 
 Resulting lists (`src/sync/relays.ts`):
 
-- **Default:** nos.lol, relay.primal.net, relay.snort.social, nostr.bitcoiner.social, nostr.data.haus
-- **Fallback:** nostr.oxtr.dev, relay.nostr.wirednet.jp, nostr.mom
-- **Extras (selectable):** purplerelay.com, nostr.sathoarder.com, offchain.pub, nostr-pub.wellorder.net
+- **Default:** nos.lol, relay.primal.net, relay.snort.social, relay.nostr.wirednet.jp, nostr.data.haus
+- **Fallback:** nostr.oxtr.dev, nostr.mom, nostr.sathoarder.com
+- **Extras (selectable):** purplerelay.com, nostr.bitcoiner.social, offchain.pub, nostr-pub.wellorder.net
+
+(Updated after the burst test below: nostr.bitcoiner.social left the defaults.)
 
 Retention checks after 24 h and 7 days: run the "Relay survey" workflow manually with
 `recheck_run_id = 43713531163`.
@@ -47,5 +49,7 @@ All accepted events were read back after 60 s. Conclusion: a new key per event n
 than a stable key, and avoids per-pubkey rate limits. A device key with no profile counts as
 "unknown" to web-of-trust relays just like a throwaway key, so it gains nothing there.
 
-Separate finding: nostr.bitcoiner.social, a default relay, now behaves as a web-of-trust relay
-(the M0 survey sent only one event, inside its allowance).
+Separate finding: nostr.bitcoiner.social, then a default relay, now behaves as a web-of-trust relay
+(the M0 survey sent only one event, inside its allowance). It moved to the extras, replaced by
+relay.nostr.wirednet.jp (100% in both tests, NIP-77); nostr.sathoarder.com became a fallback.
+Groups created before this keep their relay list.
