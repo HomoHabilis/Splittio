@@ -1,0 +1,43 @@
+# M0 relay survey: publishes a Splittio-shaped kind-30078 event from a brand-new
+# key to each listed relay and records which ones accept and keep it.
+# Runs on push when the survey script changes, or manually. To re-check retention
+# after 24 h / 7 days, run it manually with the run id of the first survey.
+name: Relay survey
+on:
+  push:
+    paths: [scripts/relay-survey.mjs, .github/workflows/relay-survey.yml]
+  workflow_dispatch:
+    inputs:
+      recheck_run_id:
+        description: Run id of an earlier survey to re-check (leave empty for a new survey)
+        required: false
+permissions:
+  contents: read
+  actions: read
+jobs:
+  survey:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - if: ${{ inputs.recheck_run_id }}
+        uses: actions/download-artifact@v4
+        with:
+          name: relay-survey
+          run-id: ${{ inputs.recheck_run_id }}
+          github-token: ${{ github.token }}
+      - name: Survey
+        run: |
+          if [ -n "${{ inputs.recheck_run_id }}" ]; then node scripts/relay-survey.mjs --recheck > table.md; else node scripts/relay-survey.mjs > table.md; fi
+          cat table.md
+          cat table.md >> "$GITHUB_STEP_SUMMARY"
+          cat relay-survey.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: relay-survey
+          path: relay-survey.json
+          retention-days: 30
