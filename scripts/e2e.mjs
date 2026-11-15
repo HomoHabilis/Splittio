@@ -76,13 +76,8 @@ try {
   await B.page.waitForSelector('text=Cheese', { timeout: 10000 })
   check(true, 'B received the group and the expense from the relay')
   await B.page.getByRole('tab', { name: 'Balances' }).click()
-  const bobOwes = await B.page
-    .locator('.settle', { hasText: 'Ann receives' })
-    .getByText('from Bob')
-    .first()
-    .waitFor()
-    .then(() => true, () => false)
-  check(bobOwes, 'B sees Bob paying Ann in suggested reimbursements')
+  const bobOwes = await B.page.getByText('Bob owes Ann').first().waitFor().then(() => true, () => false)
+  check(bobOwes, 'B sees "Bob owes Ann" in suggested reimbursements')
   await B.page.screenshot({ path: `${SHOTS}/2-balances-B.png` })
 
   // ---- B goes offline and edits; A edits meanwhile ----
