@@ -351,6 +351,14 @@ legend {
   color: var(--line);
   cursor: pointer;
 }
+.share-btn {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+}
 .star.on {
   color: #eab308;
 }
@@ -390,14 +398,18 @@ legend {
   text-decoration: none;
   box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
 }
+.invite-btn {
+  flex-shrink: 0;
+}
 .sync-badge {
   display: inline-flex;
+  min-width: 0;
   align-items: center;
   gap: 6px;
   font-size: 0.75rem;
   color: var(--muted);
   text-decoration: none;
-  max-width: 45%;
+  max-width: 28%;
 }
 .sync-text {
   overflow: hidden;
@@ -603,4 +615,10 @@ hr {
 }
 .prose p {
   margin: 0 0 12px;
+}
+.bar h1 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

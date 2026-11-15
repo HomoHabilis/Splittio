@@ -49,6 +49,9 @@ export function Group({ groupId, tab }: { groupId: string; tab?: string }) {
           <span class="dot" />
           <span class="sync-text">{sync.text}</span>
         </a>
+        <a class="btn small invite-btn" href={`#/g/${groupId}/invite`}>
+          {t('Invite')}
+        </a>
       </header>
       {view.state.held.length > 0 && (
         <p class="notice small">{t('{n} changes waiting: the sender’s clock is ahead of yours.', { n: view.state.held.length })}</p>
@@ -134,7 +137,14 @@ function Expenses({ view }: { view: GroupView }) {
         </details>
       </div>
       {list.length === 0 && (
-        <p class="empty">{state.expenses.length ? t('No matching expenses.') : t('No expenses yet. Tap + to add the first one.')}</p>
+        <div class="empty">
+          <p>{state.expenses.length ? t('No matching expenses.') : t('No expenses yet. Tap + to add the first one.')}</p>
+          {!state.expenses.length && (
+            <a class="btn" href={`#/g/${record.id}/invite`}>
+              {t('Invite people')}
+            </a>
+          )}
+        </div>
       )}
       {[...byMonth].map(([month, items]) => (
         <section key={month}>
