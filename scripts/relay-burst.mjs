@@ -23,7 +23,7 @@ const RELAYS = [
 ]
 const N = Number(process.env.N ?? 20)
 const PAUSE_MS = Number(process.env.PAUSE_MS ?? 60000)
-const ORDER = ['stable', 'fresh', 'fresh', 'stable']
+const ORDER = (process.env.ORDER ?? 'stable,fresh,fresh,stable').split(',')
 const hex = (b) => Buffer.from(b).toString('hex')
 const rnd = (n) => crypto.getRandomValues(new Uint8Array(n))
 
@@ -87,6 +87,7 @@ async function round(url, mode) {
   const ids = []
   let ok = 0
   let sent = 0
+  const log = []
   const t0 = Date.now()
   for (let i = 0; i < N; i++) {
     if (ws.readyState !== WebSocket.OPEN) {
@@ -99,6 +100,7 @@ async function round(url, mode) {
       if (msg[0] === 'OK' && msg[1] === ev.id) return { ok: msg[2], message: msg[3] ?? '' }
       if (msg[0] === 'NOTICE') messages['NOTICE: ' + String(msg[1]).slice(0, 60)] = (messages['NOTICE: ' + String(msg[1]).slice(0, 60)] ?? 0) + 1
     })
+    log.push(!!r.ok)
     if (r.ok) ok++, ids.push(ev.id)
     else {
       const m = r.timeout ? 'no OK (timeout)' : r.error ? r.error : String(r.message).slice(0, 70)
@@ -106,8 +108,9 @@ async function round(url, mode) {
     }
   }
   const ms = Date.now() - t0
+  const firstReject = ids.length < sent ? log.findIndex((x) => !x) : -1
   ws.close()
-  return { mode, connected: true, sent, ok, messages, ids, ms }
+  return { mode, connected: true, sent, ok, firstReject, messages, ids, ms }
 }
 
 async function readBack(url, ids) {
@@ -139,6 +142,7 @@ const sum = (rs, k) => rs.reduce((a, r) => a + (r[k] ?? 0), 0)
 console.log(`Burst of ${N} events per round, rounds ${ORDER.join(', ')}; read back after ${PAUSE_MS / 1000} s.\n`)
 console.log('| Relay | Stable key: accepted | Stable: read back | Fresh keys: accepted | Fresh: read back | Rejections (stable) | Rejections (fresh) |')
 console.log('|---|---|---|---|---|---|---|')
+const details = []
 for (const { url, rounds } of results) {
   const s = rounds.filter((r) => r.mode === 'stable')
   const f = rounds.filter((r) => r.mode === 'fresh')
@@ -148,5 +152,8 @@ for (const { url, rounds } of results) {
     for (const r of rs) if (!r.connected) m['no connection'] = (m['no connection'] ?? 0) + 1
     return Object.entries(m).map(([k, v]) => `${v}× ${k.replace(/\|/g, '/')}`).join('; ') || '–'
   }
+  details.push(`- ${url}: ${rounds.map((r) => `${r.mode} ${r.ok}/${r.sent}${r.firstReject >= 0 ? ` (first rejection at #${r.firstReject + 1})` : ''}`).join(', ')}`)
   console.log(`| ${url} | ${sum(s, 'ok')}/${N * s.length} | ${sum(s, 'found')} | ${sum(f, 'ok')}/${N * f.length} | ${sum(f, 'found')} | ${msgs(s)} | ${msgs(f)} |`)
 }
+console.log('\nRounds in order:\n')
+console.log(details.join('\n'))
