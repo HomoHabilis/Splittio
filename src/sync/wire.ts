@@ -22,17 +22,36 @@ export function groupCrypto(groupKey: Uint8Array): GroupCrypto {
   }
 }
 
-async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
-  const body = new Blob([bytes as BlobPart]).stream().pipeThrough(stream)
-  return new Uint8Array(await new Response(body).arrayBuffer())
+/** Inflated size caps: a tiny "zip bomb" from a member must not freeze everyone's app. */
+export const MAX_INFLATED_OPS = 4_000_000
+export const MAX_INFLATED_SNAPSHOT = 64_000_000
+
+async function pipe(bytes: Uint8Array, stream: CompressionStream | DecompressionStream, max = Infinity): Promise<Uint8Array> {
+  const reader = new Blob([bytes as BlobPart]).stream().pipeThrough(stream).getReader()
+  const parts: Uint8Array[] = []
+  let size = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    size += value.byteLength
+    if (size > max) {
+      await reader.cancel()
+      throw new Error('payload too large')
+    }
+    parts.push(value)
+  }
+  const out = new Uint8Array(size)
+  let off = 0
+  for (const p of parts) out.set(p, off), (off += p.byteLength)
+  return out
 }
 
 export async function compress(s: string): Promise<string> {
   return b64Encode(await pipe(new TextEncoder().encode(s), new CompressionStream('deflate-raw')))
 }
 
-export async function decompress(b64: string): Promise<string> {
-  return new TextDecoder().decode(await pipe(b64Decode(b64), new DecompressionStream('deflate-raw')))
+export async function decompress(b64: string, max = MAX_INFLATED_OPS): Promise<string> {
+  return new TextDecoder().decode(await pipe(b64Decode(b64), new DecompressionStream('deflate-raw'), max))
 }
 
 /** Ops on the wire omit groupId (implied by the tag/key) and author (taken from the signature). */

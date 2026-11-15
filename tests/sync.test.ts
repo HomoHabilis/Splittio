@@ -255,3 +255,27 @@ describe('sync engine (against a local relay)', () => {
     expect(s.e.find((e: { id: string }) => e.id === 'e6').title).toBe('fresh title')
   })
 })
+
+describe('wire payload limits', () => {
+  it('rejects a compressed payload that inflates past the cap ("zip bomb")', async () => {
+    const { compress, decodePlaintext, MAX_INFLATED_OPS } = await import('../src/sync/wire')
+    const bomb = 'z:' + (await compress('{"t":"ops","v":1,"ops":["' + 'a'.repeat(MAX_INFLATED_OPS) + '"]}'))
+    expect(bomb.length).toBeLessThan(32_000) // fits in one event
+    await expect(decodePlaintext(bomb)).rejects.toThrow(/too large/)
+    const ok = 'z:' + (await compress('{"t":"ops","v":1,"ops":[]}'))
+    expect(await decodePlaintext(ok)).toEqual({ t: 'ops', v: 1, ops: [] })
+  })
+})
+
+describe('relay list from group ops', () => {
+  it('keeps only valid, de-duplicated relay URLs, at most MAX_GROUP_RELAYS', async () => {
+    const { MAX_GROUP_RELAYS } = await import('../src/sync/engine')
+    const d = await device(['wss://nos.lol'])
+    const many = Array.from({ length: 40 }, (_, i) => `wss://r${i}.example`)
+    d.sync.setRelays(['javascript:alert(1)', 'https://x.example', 'nos.lol', 'wss://nos.lol/', ' ', ...many])
+    const g = await d.store.getGroup(GID)
+    expect(g!.relays[0]).toBe('wss://nos.lol')
+    expect(g!.relays).toHaveLength(MAX_GROUP_RELAYS)
+    expect(g!.relays.every((u) => /^wss?:\/\/[^/]+/.test(u))).toBe(true)
+  })
+})
