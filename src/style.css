@@ -658,9 +658,6 @@ hr {
   align-items: flex-end;
   gap: 6px;
 }
-.list-item .pay .amount {
-  font-size: 1.1em;
-}
 .pill {
   display: inline-block;
   padding: 2px 10px;
@@ -673,4 +670,23 @@ hr {
 .pill.family {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.pill.payer {
+  background: color-mix(in srgb, var(--neg) 10%, transparent);
+  border-color: color-mix(in srgb, var(--neg) 45%, transparent);
+  color: var(--neg);
+}
+.pill.payee {
+  background: color-mix(in srgb, var(--pos) 10%, transparent);
+  border-color: color-mix(in srgb, var(--pos) 45%, transparent);
+  color: var(--pos);
+}
+.money-chip {
+  display: inline-block;
+  margin: 4px 0 4px 6px;
+  padding: 2px 10px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
 }

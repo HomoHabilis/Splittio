@@ -77,7 +77,7 @@ try {
   check(true, 'B received the group and the expense from the relay')
   await B.page.getByRole('tab', { name: 'Balances' }).click()
   const bobOwes = await B.page
-    .locator('.list-item', { hasText: /Bob\s*owes\s*Ann/ })
+    .locator('.list-item', { hasText: /Bob[^]*owes[^]*Ann/ })
     .first()
     .waitFor()
     .then(() => true, () => false)
