@@ -419,7 +419,7 @@ export async function rekeyGroup(view: GroupView): Promise<string> {
     relays: state.group.relays.length ? state.group.relays : record.relays,
   })
   const f = app.factory(id)
-  const ops = state.participants.map((p) => f.op('participant', p.id, { name: p.name, deleted: p.deleted }))
+  const ops = state.participants.map((p) => f.op('participant', p.id, { name: p.name, deleted: p.deleted, ...(p.household ? { household: p.household } : {}) }))
   for (const e of state.expenses) {
     if (e.recurringFrom) continue // re-derived from the template in the new group
     ops.push(

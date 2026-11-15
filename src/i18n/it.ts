@@ -298,4 +298,10 @@ export default {
   "{from} paid back {to}": "{from} ha rimborsato {to}",
   "{n} changes waiting: the sender’s clock is ahead of yours.": "{n} modifiche in attesa: l'orologio del mittente è avanti rispetto al tuo.",
   "{n} expenses have a split that doesn’t add up; they are applied proportionally.": "{n} spese hanno una divisione che non torna; viene applicata in proporzione.",
+  "People in the same household are settled up together: one of them pays or receives for all.": "Le persone dello stesso nucleo familiare vengono rimborsate insieme: una di loro paga o riceve per tutti.",
+  "Settles up through": "Salda i conti tramite",
+  "Others settle through this person.": "Altre persone passano da questa.",
+  "alone": "da solo/a",
+  "{name} now pays and receives through {rep}": "{name} ora paga e riceve tramite {rep}",
+  "{name} now settles up on their own": "{name} ora salda i conti da solo/a",
 } as Record<string, string>

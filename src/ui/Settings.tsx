@@ -2,7 +2,9 @@ import { useEffect, useState } from 'preact/hooks'
 import { app, type GroupView } from '../app/app'
 import { exportCsv, exportJson, importIntoGroup, makeBackup, parseImport, rekeyGroup } from '../app/data'
 import { getBalances, toLedger } from '../core/balances'
+import { householdBalances, householdMembers, resolveHouseholds } from '../core/households'
 import { uuid } from '../core/util'
+import type { Participant } from '../core/types'
 import { LANGUAGES, lang, setLanguage, storedLanguage, t, type Lang } from '../i18n'
 import { normalizeRelayUrl } from '../sync/relays'
 import { CurrencySelect, Section } from './components'
@@ -139,23 +141,56 @@ function Participants({ view }: { view: GroupView }) {
   const gid = state.group.id
   const [newName, setNewName] = useState('')
   const balances = getBalances(state.expenses.filter((e) => !e.deleted).map(toLedger))
+  const reps = resolveHouseholds(state.participants)
+  const grouped = householdBalances(balances, reps)
+  const members = householdMembers(state.participants)
+  // Representatives can only be people who don't settle through someone else.
+  const candidates = (p: Participant, rep: string) =>
+    state.participants.filter((c) => c.id !== p.id && reps.get(c.id) === c.id && (!c.deleted || c.id === rep))
   const op = (id: string, set: Record<string, unknown>) => app.apply(gid, [app.factory(gid).op('participant', id, set)])
   return (
     <Section title={t('Participants')}>
+      <p class="muted small">{t('People in the same household are settled up together: one of them pays or receives for all.')}</p>
       <ul class="list compact">
         {state.participants.map((p) => {
-          const bal = balances[p.id]?.total ?? 0
+          const rep = reps.get(p.id)!
+          // A household member can leave once the household as a whole is settled.
+          const bal = rep !== p.id || members.has(p.id) ? grouped[rep]?.total ?? 0 : balances[p.id]?.total ?? 0
+          const leadsHousehold = members.has(p.id)
           return (
             <li key={p.id} class={'list-item' + (p.deleted ? ' muted' : '')}>
-              <input
-                class="grow plain"
-                value={p.name}
-                aria-label={t('Name')}
-                onChange={(e) => {
-                  const v = e.currentTarget.value.trim()
-                  if (v && v !== p.name) void op(p.id, { name: v })
-                }}
-              />
+              <div class="grow participant">
+                <input
+                  class="plain"
+                  value={p.name}
+                  aria-label={t('Name')}
+                  onChange={(e) => {
+                    const v = e.currentTarget.value.trim()
+                    if (v && v !== p.name) void op(p.id, { name: v })
+                  }}
+                />
+                {!p.deleted && (
+                  <label class="small muted household">
+                    {t('Settles up through')}
+                    <select
+                      value={rep}
+                      disabled={leadsHousehold}
+                      title={leadsHousehold ? t('Others settle through this person.') : ''}
+                      onChange={(e) => {
+                        const v = e.currentTarget.value
+                        void op(p.id, { household: v === p.id ? '' : v })
+                      }}
+                    >
+                      <option value={p.id}>{t('alone')}</option>
+                      {candidates(p, rep).map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                )}
+              </div>
               {p.deleted ? (
                 <button class="btn small" onClick={() => op(p.id, { deleted: false })}>
                   {t('Restore')}

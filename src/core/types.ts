@@ -57,7 +57,17 @@ export type Expense = {
   createdBy: string
 }
 
-export type Participant = { id: string; name: string; deleted: boolean }
+export type Participant = {
+  id: string
+  name: string
+  deleted: boolean
+  /**
+   * The participant who pays and receives for this one when settling up (a
+   * family's representative). Shares and balances stay per person; only the
+   * suggested reimbursements are grouped. See core/households.ts.
+   */
+  household?: string
+}
 
 export type Device = { pubkey: string; participantId?: string; label?: string; firstSeen: string }
 

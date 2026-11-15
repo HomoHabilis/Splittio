@@ -140,6 +140,21 @@ describe('CRDT convergence', () => {
   })
 })
 
+describe('households', () => {
+  it('folds the household field, with the latest write winning and an empty value clearing it', () => {
+    const create = [op(devA, T0, 'participant', 'p1', { name: 'Ann' }), op(devA, T0, 'participant', 'p2', { name: 'Bob' })]
+    const join = op(devA, T0 + 1, 'participant', 'p2', { household: 'p1' })
+    const leave = op(devB, T0 + 2, 'participant', 'p2', { household: '' })
+    expect(fold(G, [...create, join]).participants.find((p) => p.id === 'p2')?.household).toBe('p1')
+    expect(fold(G, [leave, ...create, join]).participants.find((p) => p.id === 'p2')?.household).toBeUndefined()
+  })
+
+  it('ignores a participant pointing at themselves', () => {
+    const ops = [op(devA, T0, 'participant', 'p1', { name: 'Ann', household: 'p1' })]
+    expect(fold(G, ops).participants[0].household).toBeUndefined()
+  })
+})
+
 describe('held future ops', () => {
   it('holds ops more than 1 h ahead and applies them once the clock catches up', () => {
     const create = op(devA, T0, 'expense', 'e', { title: 'Now', date: '2026-11-01', paidBy: 'p1', money: money(100, ['p1']) })
