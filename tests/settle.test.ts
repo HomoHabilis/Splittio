@@ -91,6 +91,34 @@ describe('fewest reimbursements', () => {
     expectSettled(totals, reimbursements)
   })
 
+  // Hand-picked cases, with the minimum worked out by hand.
+  const cases: [string, Record<string, number>, number][] = [
+    ['one payer, three people', { a: 2000, b: -1000, c: -1000 }, 2],
+    ['two couples owing the same amount', { a: 1000, b: 1000, c: -1000, d: -1000 }, 2],
+    ['two mirrored triples', { a: 500, b: 500, c: -300, d: -300, e: -200, f: -200 }, 4],
+    ['a triple and a pair', { a: 300, b: -100, c: -200, d: 700, e: -700 }, 3],
+    ['three triples with no shared amounts', { a: 9, b: -4, c: -5, d: 8, e: -1, f: -7, g: 6, h: -3, i: -3 }, 6],
+    ['one group that cannot be split', { a: 7, b: 3, c: -4, d: -6 }, 3],
+    ['tiny amounts', { a: 1, b: -1, c: 2, d: -1, e: -1 }, 3],
+    // Balances of a real 12-person dinner (five expenses split evenly and one
+    // reimbursement). No smaller group settles on its own, so 11 is the minimum.
+    [
+      '12-person dinner',
+      { p01: 2433, p02: -3267, p03: -3267, p04: -3267, p05: -3267, p06: 11633, p07: -3267, p08: 2333, p09: -3266, p10: 4234, p11: 2234, p12: -3266 },
+      11,
+    ],
+  ]
+
+  for (const [name, totals, minimum] of cases) {
+    it(`needs ${minimum} transfers for ${name}`, () => {
+      const reimbursements = getSuggestedReimbursements(balancesOf(totals))
+
+      expect(bruteForceMinimum(Object.values(totals))).toBe(minimum)
+      expect(reimbursements).toHaveLength(minimum)
+      expectSettled(totals, reimbursements)
+    })
+  }
+
   it('suggests nothing when everyone is settled', () => {
     expect(getSuggestedReimbursements(balancesOf({ a: 0, b: 0 }))).toEqual([])
     expect(getSuggestedReimbursements({})).toEqual([])
