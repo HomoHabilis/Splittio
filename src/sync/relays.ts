@@ -5,26 +5,28 @@
  * - purplerelay.com accepted but did not return the event: moved to the extras;
  * - nostr-pub.wellorder.net was unreachable;
  * - every other relay accepted, returned the event and indexed the `z` tag.
+ * The burst test (same day, 80 events per relay) found that nostr.bitcoiner.social also
+ * refuses unknown keys after ~15 events per IP, so it moved from the defaults to the extras;
+ * relay.nostr.wirednet.jp took its place and nostr.sathoarder.com became a fallback.
  * Retention after 24 h and 7 days is re-checked by the "Relay survey" workflow.
  */
 export const DEFAULT_RELAYS = [
   'wss://nos.lol',
   'wss://relay.primal.net',
   'wss://relay.snort.social',
-  'wss://nostr.bitcoiner.social',
+  'wss://relay.nostr.wirednet.jp',
   'wss://nostr.data.haus',
 ]
 
-export const FALLBACK_RELAYS = ['wss://nostr.oxtr.dev', 'wss://relay.nostr.wirednet.jp', 'wss://nostr.mom']
+export const FALLBACK_RELAYS = ['wss://nostr.oxtr.dev', 'wss://nostr.mom', 'wss://nostr.sathoarder.com']
 
 export const EXTRA_RELAYS = [
   'wss://purplerelay.com',
-  'wss://nostr.sathoarder.com',
+  'wss://nostr.bitcoiner.social',
   'wss://offchain.pub',
   'wss://nostr-pub.wellorder.net',
 ]
 
-/** Fixed order used by the invite link's relay bitmap. Append only; never reorder. */
 export const KNOWN_RELAYS = [
   'wss://purplerelay.com',
   'wss://nos.lol',

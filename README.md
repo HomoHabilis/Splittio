@@ -49,6 +49,15 @@ group, create a device, claim to be any participant and edit or delete anything.
 signatures make changes traceable and the activity log flags new devices, but they don't prevent
 impersonation. Use "Re-key group" to cut someone off.
 
+### What relays see
+
+Each event is signed by a throwaway key made for that one event, so relays can't tell which
+device posted, or link a phone's events across groups. The device key and its Schnorr signature
+over the batch travel inside the encrypted content (ops payload `v: 2`); members verify it and
+reject a batch whose signature doesn't match. The signature also covers the group's ops tag, so a
+batch can't be replayed into another group. Relays still see an opaque per-group tag and timing.
+Batches from older clients (`v: 1`, signed by the device key) are still accepted.
+
 ## Development
 
 ```sh

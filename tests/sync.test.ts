@@ -204,8 +204,8 @@ describe('sync engine (against a local relay)', () => {
       await until(async () => (await b.store.groupOps(GID)).length === (await a.store.groupOps(GID)).length)
       const late = a.factory.op('expense', 'late', { title: 'Old receipt', date: '2026-10-01', paidBy: 'p2', money: money(700, ['p1', 'p2']) })
       const { batchOps, signEvent } = await import('../src/sync/wire')
-      const [batch] = await batchOps([late])
-      const old = signEvent(a.sync.gc, 'ops', batch.plaintext, a.dev.sk, Math.floor(Date.now() / 1000) - 86400 * 30)
+      const [batch] = await batchOps(a.sync.gc, [late], a.dev)
+      const old = signEvent(a.sync.gc, 'ops', batch.plaintext, Math.floor(Date.now() / 1000) - 86400 * 30)
       // Delivered straight into the relay store (no live broadcast).
       r.events.set(old.id, old)
       await new Promise((res) => setTimeout(res, 100))
@@ -277,5 +277,87 @@ describe('relay list from group ops', () => {
     expect(g!.relays[0]).toBe('wss://nos.lol')
     expect(g!.relays).toHaveLength(MAX_GROUP_RELAYS)
     expect(g!.relays.every((u) => /^wss?:\/\/[^/]+/.test(u))).toBe(true)
+  })
+})
+
+describe('throwaway signing keys', () => {
+  it('signs every batch with a new key, keeps the device as the author, and still self-heals', async () => {
+    const r = await relay()
+    const a = await device([r.url])
+    const b = await device([r.url])
+    await a.sync.start()
+    await b.sync.start()
+    await seed(a)
+    await until(() => r.events.size === 1)
+    await a.sync.addLocal([a.factory.op('expense', 'x', { title: 'Second batch' })])
+    await until(() => r.events.size === 2)
+    await a.sync.publishSnapshot()
+    await until(async () => (await b.state()) === (await a.state()))
+
+    // Relays never see the device key, and no two events share a key.
+    const pubkeys = [...r.events.values()].map((e: { pubkey: string }) => e.pubkey)
+    expect(pubkeys.length).toBeGreaterThanOrEqual(3)
+    expect(pubkeys).not.toContain(a.dev.pubkey)
+    expect(new Set(pubkeys).size).toBe(pubkeys.length)
+
+    // Members still see which device wrote each op (activity log, "new device" badge).
+    const ops = await b.store.groupOps(GID)
+    expect(ops.length).toBeGreaterThan(0)
+    expect(ops.every((o) => o.author === a.dev.pubkey)).toBe(true)
+
+    // Own events are recognized without the device key: nothing stays "unconfirmed".
+    await until(async () => (await a.store.groupEvents(GID)).every((e) => e.relays.length === 1))
+    expect(a.sync.status().unconfirmed).toBe(0)
+    expect((await a.store.groupEvents(GID)).every((e) => e.mine)).toBe(true)
+
+    // A relay that lost everything gets the same signed events back, byte for byte.
+    const before = new Map([...r.events.values()].map((e: { id: string }) => [e.id, JSON.stringify(e)]))
+    r.drop()
+    await a.sync.reconcile(r.url, true)
+    await until(() => r.events.size === before.size)
+    for (const e of r.events.values()) expect(JSON.stringify(e)).toBe(before.get((e as { id: string }).id))
+  })
+
+  it('rejects a batch whose device signature is forged, or replayed from another group', async () => {
+    const { batchOps, signEvent, openEvent, groupCrypto, decodePlaintext, encodePlaintext } = await import('../src/sync/wire')
+    const { decrypt } = await import('nostr-tools/nip44')
+    const { hexToBytes } = await import('../src/core/util')
+    const gc = groupCrypto(hexToBytes(GROUP_KEY))
+    const alice = deviceFromSecret(bytesToHex(generateSecretKey()))
+    const mallory = deviceFromSecret(bytesToHex(generateSecretKey()))
+    const op = new OpFactory(GID, new Clock(alice.hlcId), alice.pubkey).op('expense', 'e1', { title: 'Wine' })
+    const [batch] = await batchOps(gc, [op], alice)
+
+    const good = signEvent(gc, 'ops', batch.plaintext, 1_800_000_000)
+    const opened = await openEvent(gc, GID, good)
+    expect(opened.kind === 'ops' && opened.ops[0].author).toBe(alice.pubkey)
+
+    // Mallory claims Alice's device key with her own signature.
+    const [mb] = await batchOps(gc, [op], mallory)
+    const p = (await decodePlaintext(mb.plaintext)) as { a: string }
+    p.a = alice.pubkey
+    const forged = signEvent(gc, 'ops', await encodePlaintext(p as never), 1_800_000_000)
+    await expect(openEvent(gc, GID, forged)).rejects.toThrow(/device signature/)
+
+    // Alice's signed batch copied into another group (another key and tag) is rejected.
+    const other = groupCrypto(crypto.getRandomValues(new Uint8Array(32)))
+    const inner = decrypt(good.content, gc.convKey)
+    const replayed = signEvent(other, 'ops', inner, 1_800_000_000)
+    await expect(openEvent(other, 'other', replayed)).rejects.toThrow(/device signature/)
+
+    // A v2 batch without a signature is rejected too.
+    const unsigned = signEvent(gc, 'ops', await encodePlaintext({ t: 'ops', v: 2, a: alice.pubkey, ops: [] } as never), 1_800_000_000)
+    await expect(openEvent(gc, GID, unsigned)).rejects.toThrow(/bad ops payload/)
+  })
+
+  it('still accepts v1 batches from older clients, with the event key as the author', async () => {
+    const { signEvent, openEvent, groupCrypto, encodePlaintext } = await import('../src/sync/wire')
+    const { hexToBytes } = await import('../src/core/util')
+    const gc = groupCrypto(hexToBytes(GROUP_KEY))
+    const old = deviceFromSecret(bytesToHex(generateSecretKey()))
+    const { groupId: _g, author: _a, ...w } = new OpFactory(GID, new Clock(old.hlcId), old.pubkey).op('expense', 'e1', { title: 'Bread' })
+    const ev = signEvent(gc, 'ops', await encodePlaintext({ t: 'ops', v: 1, ops: [w] }), 1_800_000_000, undefined, old.sk)
+    const opened = await openEvent(gc, GID, ev)
+    expect(opened.kind === 'ops' && opened.ops.map((o) => o.author)).toEqual([old.pubkey])
   })
 })
