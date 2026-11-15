@@ -108,6 +108,7 @@ export default {
   "Install Splittio first": "Prima installa Splittio",
   "Insurance": "Assicurazione",
   "Invalid invite link": "Link di invito non valido",
+  "Invite": "Invita",
   "Invite people": "Invita persone",
   "Join": "Entra",
   "Join group": "Entra nel gruppo",
