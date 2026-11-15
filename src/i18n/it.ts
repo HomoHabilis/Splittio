@@ -304,7 +304,4 @@ export default {
   "alone": "da solo/a",
   "{name} now pays and receives through {rep}": "{name} ora paga e riceve tramite {rep}",
   "{name} now settles up on their own": "{name} ora salda i conti da solo/a",
-  "{n} transfers settle everyone up, grouped by who receives the money.": "{n} trasferimenti saldano tutti i conti, raggruppati per chi riceve.",
-  "{name} receives": "{name} riceve",
-  "from {name}": "da {name}",
 } as Record<string, string>
