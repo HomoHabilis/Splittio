@@ -135,7 +135,13 @@ export function fold(groupId: string, ops: Iterable<Op>, opts: FoldOptions = {})
     const [entity, id] = splitKey(key)
     const v = (f: string) => fields.get(f)?.value
     if (entity === 'participant') {
-      participants.push({ id, name: str(v('name')) || '?', deleted: v('deleted') === true })
+      const household = v('household')
+      participants.push({
+        id,
+        name: str(v('name')) || '?',
+        deleted: v('deleted') === true,
+        ...(typeof household === 'string' && household && household !== id ? { household } : {}),
+      })
     } else if (entity === 'device') {
       let first = ''
       for (const r of fields.values()) if (!first || r.hlc < first) first = r.hlc

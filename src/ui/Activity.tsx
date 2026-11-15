@@ -61,6 +61,12 @@ export function Activity({ view }: { view: GroupView }) {
     }
     if (o.entity === 'participant') {
       if (o.set.deleted === true) return t('removed participant {name}', { name: names.get(o.entityId) ?? '?' })
+      if ('household' in o.set && !('name' in o.set)) {
+        const who = names.get(o.entityId) ?? '?'
+        return o.set.household
+          ? t('{name} now pays and receives through {rep}', { name: who, rep: names.get(String(o.set.household)) ?? '?' })
+          : t('{name} now settles up on their own', { name: who })
+      }
       return t('set participant name to {name}', { name: String(o.set.name ?? names.get(o.entityId) ?? '?') })
     }
     if (o.entity === 'device') return t('joined with this device as {name}', { name: names.get(String(o.set.participantId)) ?? '?' })
