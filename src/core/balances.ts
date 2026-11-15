@@ -93,6 +93,81 @@ function greedyReimbursements(entries: Entry[]): Reimbursement[] {
   return reimbursements
 }
 
+/** How many search steps `settleWithoutTinyTransfers` may take per group. */
+export const SETTLE_SEARCH_BUDGET = 20000
+
+/**
+ * Settles a group that has no smaller zero-sum subgroup, so every way of
+ * settling it one person at a time takes the same k - 1 transfers. Among those,
+ * looks for the one whose smallest transfer is the largest, so a 0.66 € top-up
+ * is avoided when the same number of transfers can be made with larger ones.
+ * Since only the smallest transfer is compared, this follows the size of the
+ * amounts: in a group of 30 € debts it avoids 1 € transfers, in a group of
+ * 3,000 € debts, 100 € ones.
+ *
+ * Depth-first search, starting from the most promising move and from Spliit's
+ * greedy result, pruned by the smallest remaining balance (nobody can be
+ * settled with transfers larger than what they still owe or are owed). The
+ * step budget is counted, not timed, so every device stops at the same point
+ * and shows the same suggestions.
+ */
+function settleWithoutTinyTransfers(group: Entry[]): Reimbursement[] {
+  let best = greedyReimbursements(group)
+  if (group.length <= 2) return best
+  const smallest = (list: Reimbursement[]) => list.reduce((m, r) => Math.min(m, r.amount), Infinity)
+  let bestMin = smallest(best)
+
+  const ids = group.map((e) => e.participantId)
+  const amounts = group.map((e) => e.total)
+  const path: Reimbursement[] = []
+  const seen = new Map<string, number>()
+  let budget = SETTLE_SEARCH_BUDGET
+
+  const search = (pathMin: number) => {
+    if (budget-- <= 0) return
+    let bound = pathMin
+    let open = 0
+    for (const a of amounts) if (a !== 0) (open++, (bound = Math.min(bound, Math.abs(a))))
+    if (open === 0) {
+      if (path.length < best.length || (path.length === best.length && pathMin > bestMin)) {
+        best = path.slice()
+        bestMin = pathMin
+      }
+      return
+    }
+    if (bound <= bestMin) return
+    const key = amounts.join(',')
+    if ((seen.get(key) ?? -1) >= pathMin) return
+    seen.set(key, pathMin)
+
+    // Try first the moves whose transfer and leftover are both large.
+    const moves: { d: number; c: number; amount: number; score: number }[] = []
+    for (let d = 0; d < amounts.length; d++) {
+      if (amounts[d] >= 0) continue
+      for (let c = 0; c < amounts.length; c++) {
+        if (amounts[c] <= 0) continue
+        const amount = Math.min(-amounts[d], amounts[c])
+        if (amount <= bestMin) continue
+        const left = Math.abs(amounts[c] + amounts[d])
+        moves.push({ d, c, amount, score: left === 0 ? amount : Math.min(amount, left) })
+      }
+    }
+    moves.sort((x, y) => y.score - x.score || y.amount - x.amount || x.d - y.d || x.c - y.c)
+    for (const { d, c, amount } of moves) {
+      if (amount <= bestMin || budget <= 0) continue
+      amounts[d] += amount
+      amounts[c] -= amount
+      path.push({ from: ids[d], to: ids[c], amount })
+      search(Math.min(pathMin, amount))
+      path.pop()
+      amounts[d] -= amount
+      amounts[c] += amount
+    }
+  }
+  search(Infinity)
+  return best
+}
+
 /**
  * Above this many balances (left after exact pairs are taken out) the exact
  * search is skipped. Its cost is about n·2^n steps and 9·2^n bytes, so 20
@@ -156,8 +231,10 @@ function zeroSumGroups(entries: Entry[]): Entry[][] {
  * 1. A debtor who owes exactly what a creditor is owed pays them directly; some
  *    optimal solution always does this, and it shrinks the search.
  * 2. The rest is split into as many zero-sum groups as possible (exactly while
- *    at most EXACT_SETTLEMENT_LIMIT balances remain), and each group is settled
- *    with Spliit's greedy pairing.
+ *    at most EXACT_SETTLEMENT_LIMIT balances remain).
+ * 3. Each group is settled in its k - 1 transfers, choosing the plan whose
+ *    smallest transfer is the largest. Above the limit, Spliit's greedy
+ *    pairing settles the rest as before.
  *
  * Amounts are integer minor units. Everything is ordered by participant id
  * with plain code-unit comparison, so every phone computes the same list.
@@ -193,8 +270,11 @@ export function getSuggestedReimbursements(balances: Balances): Reimbursement[] 
   }
 
   // 2. Largest number of zero-sum groups, each settled greedily.
-  const groups = unmatched.length <= EXACT_SETTLEMENT_LIMIT ? zeroSumGroups(unmatched) : [unmatched]
-  for (const group of groups) reimbursements.push(...greedyReimbursements(group))
+  if (unmatched.length <= EXACT_SETTLEMENT_LIMIT) {
+    for (const group of zeroSumGroups(unmatched)) reimbursements.push(...settleWithoutTinyTransfers(group))
+  } else {
+    reimbursements.push(...greedyReimbursements(unmatched))
+  }
 
   return clean(reimbursements)
 }

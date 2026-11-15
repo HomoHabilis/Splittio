@@ -119,6 +119,24 @@ describe('fewest reimbursements', () => {
     })
   }
 
+  it('avoids tiny transfers when the same number of transfers allows larger ones', () => {
+    // The 12-person dinner: the old pairing included a 0.66 transfer.
+    const totals = { p01: 2433, p02: -3267, p03: -3267, p04: -3267, p05: -3267, p06: 11633, p07: -3267, p08: 2333, p09: -3266, p10: 4234, p11: 2234, p12: -3266 }
+    const reimbursements = getSuggestedReimbursements(balancesOf(totals))
+
+    expect(reimbursements).toHaveLength(11)
+    expect(Math.min(...reimbursements.map((r) => r.amount))).toBeGreaterThanOrEqual(1000)
+    expectSettled(totals, reimbursements)
+  })
+
+  it('never needs more transfers to avoid small ones', () => {
+    const totals = { a: 1000, b: 1, c: -501, d: -500 }
+    const reimbursements = getSuggestedReimbursements(balancesOf(totals))
+
+    expect(reimbursements).toHaveLength(3)
+    expectSettled(totals, reimbursements)
+  })
+
   it('suggests nothing when everyone is settled', () => {
     expect(getSuggestedReimbursements(balancesOf({ a: 0, b: 0 }))).toEqual([])
     expect(getSuggestedReimbursements({})).toEqual([])
