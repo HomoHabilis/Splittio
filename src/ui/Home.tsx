@@ -59,6 +59,19 @@ export function Home() {
               <a class="list-item" href={`#/g/${g.id}`}>
                 <span class="grow">{g.name || t('Loading group…')}</span>
                 <button
+                  class="share-btn"
+                  aria-label={t('Invite people')}
+                  title={t('Invite people')}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    go(`g/${g.id}/invite`)
+                  }}
+                >
+                  <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+                  </svg>
+                </button>
+                <button
                   class={'star' + (g.favorite ? ' on' : '')}
                   aria-label={g.favorite ? t('Remove from favorites') : t('Add to favorites')}
                   onClick={(e) => {

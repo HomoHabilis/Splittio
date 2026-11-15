@@ -351,6 +351,14 @@ legend {
   color: var(--line);
   cursor: pointer;
 }
+.share-btn {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+}
 .star.on {
   color: #eab308;
 }
