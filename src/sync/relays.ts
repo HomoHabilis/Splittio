@@ -1,26 +1,44 @@
 /**
- * Relay lists from SplitFree's RelayDefaults. Provisional until the M0 survey
- * (scripts/relay-survey.mjs) has confirmed which relays accept and keep our events.
+ * Relay lists, starting from SplitFree's RelayDefaults and adjusted by the M0
+ * survey (15 Nov 2026, fresh key with no profile, Splittio-shaped kind-30078 event):
+ * - offchain.pub rejects unknown keys ("not in our web of trust"): dropped from the defaults;
+ * - purplerelay.com accepted but did not return the event: moved to the extras;
+ * - nostr-pub.wellorder.net was unreachable;
+ * - every other relay accepted, returned the event and indexed the `z` tag.
+ * Retention after 24 h and 7 days is re-checked by the "Relay survey" workflow.
  */
 export const DEFAULT_RELAYS = [
+  'wss://nos.lol',
+  'wss://relay.primal.net',
+  'wss://relay.snort.social',
+  'wss://nostr.bitcoiner.social',
+  'wss://nostr.data.haus',
+]
+
+export const FALLBACK_RELAYS = ['wss://nostr.oxtr.dev', 'wss://relay.nostr.wirednet.jp', 'wss://nostr.mom']
+
+export const EXTRA_RELAYS = [
+  'wss://purplerelay.com',
+  'wss://nostr.sathoarder.com',
+  'wss://offchain.pub',
+  'wss://nostr-pub.wellorder.net',
+]
+
+/** Fixed order used by the invite link's relay bitmap. Append only; never reorder. */
+export const KNOWN_RELAYS = [
   'wss://purplerelay.com',
   'wss://nos.lol',
   'wss://relay.primal.net',
   'wss://relay.snort.social',
   'wss://offchain.pub',
-]
-
-export const FALLBACK_RELAYS = ['wss://nostr.data.haus', 'wss://nostr.oxtr.dev', 'wss://relay.nostr.wirednet.jp']
-
-export const EXTRA_RELAYS = [
+  'wss://nostr.data.haus',
+  'wss://nostr.oxtr.dev',
+  'wss://relay.nostr.wirednet.jp',
   'wss://nostr-pub.wellorder.net',
   'wss://nostr.sathoarder.com',
   'wss://nostr.bitcoiner.social',
   'wss://nostr.mom',
 ]
-
-/** Fixed order used by the invite link's relay bitmap. Append only; never reorder. */
-export const KNOWN_RELAYS = [...DEFAULT_RELAYS, ...FALLBACK_RELAYS, ...EXTRA_RELAYS]
 
 export function normalizeRelayUrl(u: string): string | null {
   let s = u.trim()
