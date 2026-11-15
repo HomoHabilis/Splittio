@@ -649,3 +649,28 @@ hr {
   flex: 1 1 0;
   min-width: 90px;
 }
+.list-item .owes {
+  margin: 1px 0;
+}
+.list-item .pay {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.list-item .pay .amount {
+  font-size: 1.1em;
+}
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-weight: 600;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.pill.family {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}

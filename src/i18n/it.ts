@@ -304,4 +304,6 @@ export default {
   "alone": "da solo/a",
   "{name} now pays and receives through {rep}": "{name} ora paga e riceve tramite {rep}",
   "{name} now settles up on their own": "{name} ora salda i conti da solo/a",
+  "owes": "deve a",
+  "Household": "Nucleo familiare",
 } as Record<string, string>
