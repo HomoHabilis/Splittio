@@ -31,35 +31,6 @@ export function Balances({ view }: { view: GroupView }) {
   const flagged = live.filter((e) => e.inconsistent).length
   return (
     <div>
-      <Section title={t('Balances')}>
-        {flagged > 0 && <p class="notice small">⚠ {t('{n} expenses have a split that doesn’t add up; they are applied proportionally.', { n: flagged })}</p>}
-        <ul class="balances">
-          {people.map((p) => {
-            const rep = reps.get(p.id)!
-            const total = balances[p.id]?.total ?? 0
-            const household = members.has(rep) && !shown.has(rep)
-            if (members.has(rep)) shown.add(rep)
-            const householdTotal = grouped[rep]?.total ?? 0
-            return [
-              household && (
-                <li key={'h-' + rep} class="household">
-                  <span class="name">{label(rep)}</span>
-                  <span class={'value ' + (householdTotal > 0 ? 'pos' : householdTotal < 0 ? 'neg' : '')}>{formatMoney(householdTotal, currency)}</span>
-                  <Bar value={householdTotal} max={max} tone={householdTotal >= 0 ? 'pos' : 'neg'} />
-                </li>
-              ),
-              <li key={p.id} class={(p.id === record.me ? 'me' : '') + (members.has(rep) ? ' member' : '')}>
-                <span class="name">
-                  {p.name}
-                  {p.id === record.me && <span class="muted small"> ({t('me')})</span>}
-                </span>
-                <span class={'value ' + (total > 0 ? 'pos' : total < 0 ? 'neg' : '')}>{formatMoney(total, currency)}</span>
-                <Bar value={total} max={max} tone={total >= 0 ? 'pos' : 'neg'} />
-              </li>,
-            ]
-          })}
-        </ul>
-      </Section>
       <Section title={t('Suggested reimbursements')}>
         {reimbursements.length === 0 && <p class="empty">{t('Everyone is settled up. 🎉')}</p>}
         <ul class="list">
@@ -98,6 +69,35 @@ export function Balances({ view }: { view: GroupView }) {
                 </span>
               </li>
             )
+          })}
+        </ul>
+      </Section>
+      <Section title={t('Balances')}>
+        {flagged > 0 && <p class="notice small">⚠ {t('{n} expenses have a split that doesn’t add up; they are applied proportionally.', { n: flagged })}</p>}
+        <ul class="balances">
+          {people.map((p) => {
+            const rep = reps.get(p.id)!
+            const total = balances[p.id]?.total ?? 0
+            const household = members.has(rep) && !shown.has(rep)
+            if (members.has(rep)) shown.add(rep)
+            const householdTotal = grouped[rep]?.total ?? 0
+            return [
+              household && (
+                <li key={'h-' + rep} class="household">
+                  <span class="name">{label(rep)}</span>
+                  <span class={'value ' + (householdTotal > 0 ? 'pos' : householdTotal < 0 ? 'neg' : '')}>{formatMoney(householdTotal, currency)}</span>
+                  <Bar value={householdTotal} max={max} tone={householdTotal >= 0 ? 'pos' : 'neg'} />
+                </li>
+              ),
+              <li key={p.id} class={(p.id === record.me ? 'me' : '') + (members.has(rep) ? ' member' : '')}>
+                <span class="name">
+                  {p.name}
+                  {p.id === record.me && <span class="muted small"> ({t('me')})</span>}
+                </span>
+                <span class={'value ' + (total > 0 ? 'pos' : total < 0 ? 'neg' : '')}>{formatMoney(total, currency)}</span>
+                <Bar value={total} max={max} tone={total >= 0 ? 'pos' : 'neg'} />
+              </li>,
+            ]
           })}
         </ul>
       </Section>
