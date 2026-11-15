@@ -1,0 +1,37 @@
+{
+  "name": "splittio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Serverless, end-to-end encrypted expense splitting PWA that syncs over Nostr relays",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "size": "node scripts/size.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "node scripts/e2e.mjs",
+    "relay": "node scripts/dev-relay.mjs",
+    "survey": "node scripts/relay-survey.mjs"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.0.1",
+    "idb": "^8.0.4",
+    "nostr-tools": "^2.26.1",
+    "preact": "^11.2.0",
+    "qrcode-generator": "^2.0.4"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@types/node": "^26.6.6",
+    "@types/ws": "^8.18.2",
+    "fake-indexeddb": "^6.2.8",
+    "playwright": "^1.63.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0",
+    "ws": "^8.23.0"
+  }
+}
