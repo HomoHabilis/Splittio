@@ -1,7 +1,7 @@
 import { compareOps, fold } from '../core/fold'
 import type { Op } from '../core/types'
 import { canonicalJson, sha256Hex } from '../core/util'
-import { compress, decompress, MAX_PLAINTEXT, type SnapChunkPayload } from './wire'
+import { compress, decompress, MAX_INFLATED_SNAPSHOT, MAX_PLAINTEXT, type SnapChunkPayload } from './wire'
 
 /** Publish a snapshot every this many ops. */
 export const SNAPSHOT_EVERY = 200
@@ -95,7 +95,7 @@ export async function assembleSnapshot(chunks: SnapChunkPayload[]): Promise<Snap
   const data = parts.join('')
   if (sha256Hex(data) !== hash) return null
   try {
-    const s = JSON.parse(await decompress(data)) as Snapshot
+    const s = JSON.parse(await decompress(data, MAX_INFLATED_SNAPSHOT)) as Snapshot
     return s.v === 1 && Array.isArray(s.registers) && Array.isArray(s.ops) ? s : null
   } catch {
     return null

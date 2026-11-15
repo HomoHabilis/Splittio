@@ -43,6 +43,7 @@ export const KNOWN_RELAYS = [
 export function normalizeRelayUrl(u: string): string | null {
   let s = u.trim()
   if (!s) return null
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s) && !/^wss?:\/\//i.test(s) && !/^[^:/]+:\d+(\/|$)/.test(s)) return null // other scheme
   if (!/^wss?:\/\//i.test(s)) s = 'wss://' + s
   try {
     const url = new URL(s)

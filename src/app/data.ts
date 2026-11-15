@@ -8,8 +8,14 @@ import { app, type GroupView } from './app'
 
 // ---------- CSV / JSON export ----------
 
+/** Text starting with these is run as a formula by Excel, Sheets and LibreOffice. */
+const FORMULA_START = /^[=+\-@\t\r]/
+const NUMBER = /^-?\d+(\.\d+)?$/
+
 function csvCell(v: unknown): string {
-  const s = v === undefined || v === null ? '' : String(v)
+  let s = v === undefined || v === null ? '' : String(v)
+  // A member could title an expense "=HYPERLINK(…)": prefix ' so spreadsheets show it as text.
+  if (FORMULA_START.test(s) && !NUMBER.test(s)) s = "'" + s
   return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s
 }
 
@@ -185,6 +191,9 @@ function categoryFrom(v: unknown): number {
   return CATEGORIES.find((c) => c.name.toLowerCase() === s)?.id ?? 0
 }
 
+/** Undoes csvCell's formula guard. */
+const unguard = (s: string) => (s.startsWith("'") && FORMULA_START.test(s.slice(1)) ? s.slice(1) : s)
+
 /** Parses Splittio's CSV export (or a spreadsheet with the same columns). */
 export function parseSplittioCsv(text: string): ParsedImport {
   const [header, ...lines] = parseCsv(text)
@@ -193,7 +202,7 @@ export function parseSplittioCsv(text: string): ParsedImport {
   const iDate = col('Date'), iTitle = col('Title'), iAmount = col('Amount'), iPaidBy = col('Paid by')
   if (iDate < 0 || iTitle < 0 || iAmount < 0 || iPaidBy < 0) throw new Error('CSV needs at least the columns Date, Title, Amount and Paid by')
   const known = ['date', 'title', 'category', 'amount', 'currency', 'original amount', 'original currency', 'rate', 'paid by', 'reimbursement', 'split mode', 'notes']
-  const people = header.map((h, i) => [h.trim(), i] as const).filter(([h]) => h && !known.includes(h.toLowerCase()))
+  const people = header.map((h, i) => [unguard(h.trim()), i] as const).filter(([h]) => h && !known.includes(h.toLowerCase()))
   const get = (l: string[], name: string) => {
     const i = col(name)
     return i >= 0 ? (l[i] ?? '').trim() : ''
@@ -204,7 +213,7 @@ export function parseSplittioCsv(text: string): ParsedImport {
     const amount = toCents(l[iAmount])
     const date = (l[iDate] ?? '').trim().slice(0, 10)
     if (amount === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
-    const paidBy = (l[iPaidBy] ?? '').trim()
+    const paidBy = unguard((l[iPaidBy] ?? '').trim())
     participants.add(paidBy)
     const shares: [string, number][] = []
     for (const [name, i] of people) {
@@ -215,7 +224,7 @@ export function parseSplittioCsv(text: string): ParsedImport {
     const evenly = mode === 'EVENLY' || shares.length === 0
     rows.push({
       date,
-      title: (l[iTitle] ?? '').trim(),
+      title: unguard((l[iTitle] ?? '').trim()),
       category: categoryFrom(get(l, 'Category')),
       amount,
       originalAmount: toCents(get(l, 'Original amount')),
@@ -225,7 +234,7 @@ export function parseSplittioCsv(text: string): ParsedImport {
       isReimbursement: /^(yes|true|1|oui|sì|si)$/i.test(get(l, 'Reimbursement')),
       // Per-person amounts are exact, so anything but "evenly" comes back as "by amount".
       splitMode: evenly ? 'EVENLY' : 'BY_AMOUNT',
-      notes: get(l, 'Notes'),
+      notes: unguard(get(l, 'Notes')),
       shares: evenly ? (shares.length ? shares.map(([n]) => [n, 1]) : [...participants].map((n) => [n, 1])) : shares,
     })
   }

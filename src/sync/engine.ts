@@ -5,7 +5,7 @@ import { hexToBytes } from '../core/util'
 import type { GroupRecord, StoredEvent, Store } from '../store/db'
 import type { DeviceIdentity } from '../store/device'
 import { Relay, type Filter, type RelayStatus } from './relay'
-import { FALLBACK_RELAYS, relayInfo, type RelayInfo } from './relays'
+import { FALLBACK_RELAYS, normalizeRelayUrl, relayInfo, type RelayInfo } from './relays'
 import { buildSnapshot, chunkSnapshot, newestCompleteSnapshot, snapshotOps, SNAPSHOT_EVERY } from './snapshot'
 import {
   batchOps,
@@ -18,6 +18,9 @@ import {
   type GroupCrypto,
   type SnapChunkPayload,
 } from './wire'
+
+/** Upper bound on relays per group, whatever a group-meta op says. */
+export const MAX_GROUP_RELAYS = 16
 
 export type Timing = {
   /** Subtracted from each relay's `since` cursor to absorb clock skew (s). */
@@ -156,7 +159,9 @@ export class GroupSync {
   }
 
   /** Updates the group's relay list (from the group-meta op or settings). */
-  setRelays(urls: string[]): void {
+  setRelays(list: string[]): void {
+    // The list can come from any member's op: keep only valid relay URLs, and not too many.
+    const urls = [...new Set(list.map(normalizeRelayUrl).filter((u): u is string => !!u))].slice(0, MAX_GROUP_RELAYS)
     if (urls.length === 0) return
     const same = urls.length === this.group.relays.length && urls.every((u) => this.group.relays.includes(u))
     if (same) return

@@ -33,7 +33,11 @@ async function phone(name, opts = {}) {
   )
   const page = await ctx.newPage()
   page.on('pageerror', (e) => failures.push(`${name}: ${e.message}`))
-  page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && console.log(name, 'console', m.type(), m.text()))
+  page.on('console', (m) => {
+    if (m.type() !== 'error' && m.type() !== 'warning') return
+    console.log(name, 'console', m.type(), m.text())
+    if (/Content.Security.Policy/i.test(m.text())) failures.push(`${name}: CSP violation: ${m.text()}`)
+  })
   return { ctx, page }
 }
 
