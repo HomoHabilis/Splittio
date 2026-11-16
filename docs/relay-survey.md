@@ -29,6 +29,21 @@ Resulting lists (`src/sync/relays.ts`):
 Retention checks after 24 h and 7 days: run the "Relay survey" workflow manually with
 `recheck_run_id = 43713531163`.
 
+### 24 h retention check (16 Nov 2026, run 43867223346)
+
+Each relay that accepted the probe was asked for it again by id:
+
+| Relay | 24 h |
+|---|---|
+| nos.lol, relay.primal.net, relay.snort.social, nostr.data.haus, relay.nostr.wirednet.jp | kept |
+| nostr.oxtr.dev, nostr.mom, nostr.sathoarder.com | kept |
+| purplerelay.com | kept (it did not return the event right after publishing, but does now) |
+| nostr.bitcoiner.social | **gone** |
+
+Every default and fallback relay kept the event. nostr.bitcoiner.social dropped it within a day,
+which matches the burst test below: it already moved to the extras. The 7-day check is due on
+22 Nov 2026.
+
 ## Burst test: stable key vs. a new key per event (15 Nov 2026)
 
 Question: if every batch is signed by a throwaway key, do relays reject or throttle Splittio more?
