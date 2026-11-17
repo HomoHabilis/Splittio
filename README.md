@@ -55,7 +55,9 @@ Each event is signed by a throwaway key made for that one event, so relays can't
 device posted, or link a phone's events across groups. The device key and its Schnorr signature
 over the batch travel inside the encrypted content (ops payload `v: 2`); members verify it and
 reject a batch whose signature doesn't match. The signature also covers the group's ops tag, so a
-batch can't be replayed into another group. Relays still see an opaque per-group tag and timing.
+batch can't be replayed into another group. Relays still see an opaque per-group tag, timing, and
+the IP address of each connection, which could let a relay guess that several events came from
+the same phone.
 Batches from older clients (`v: 1`, signed by the device key) are still accepted.
 
 ## Development
