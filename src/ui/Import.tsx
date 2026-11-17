@@ -90,7 +90,8 @@ export function About() {
       <p>{t('Splittio has no server and no accounts. Your groups live on your devices; changes travel between members through public Nostr relays, encrypted end to end with the group key.')}</p>
       <p>{t('The invite link contains the group key. Anyone who has it can read the group, act as any member, and edit or delete anything. Share it privately. If it leaks, use “Re-key group” in the group settings.')}</p>
       <p>{t('Every change is saved on your phone first, then sent. Each phone keeps the full signed history and re-sends what relays have lost, so the group survives relays forgetting old data.')}</p>
-      <p>{t('Relays can see that some devices post encrypted data under an opaque tag, and when. They cannot read names, amounts or the group name.')}</p>
+      <p>{t('Relays cannot read names, amounts or the group name. Each batch of changes is signed with a new throwaway key, so a signature never reveals which phone sent it, and a phone’s changes can’t be linked by key across transactions or groups.')}</p>
+      <p>{t('Relays still see an opaque tag shared by all of a group’s changes, when changes are sent, and the internet address of each phone that connects. A relay could use the address and timing to guess that several changes came from the same phone.')}</p>
       <p class="small muted">
         {t('Open source, MIT licence.')} <a href="https://github.com/HomoHabilis/Splittio">github.com/HomoHabilis/Splittio</a>
       </p>
