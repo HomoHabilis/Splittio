@@ -145,8 +145,7 @@ export class GroupSync {
     if (this.started) return
     this.started = true
     this.outboxCount = (await this.store.outbox(this.groupId)).length
-    const events = await this.store.groupEvents(this.groupId)
-    this.unconfirmed = events.filter((e) => this.isMine(e) && e.relays.length === 0).length
+    await this.recountUnconfirmed()
     this.opCount = (await this.store.groupOps(this.groupId)).length
     for (const url of this.group.relays) this.addRelay(url, false)
     this.cursorTimer = setInterval(() => void this.saveCursors(), 10_000)
@@ -273,6 +272,18 @@ export class GroupSync {
     }
   }
 
+  /**
+   * "Sent, waiting for a relay to confirm" is read from the store, not kept as a
+   * running counter: a counter drifts as soon as one confirmation is counted twice
+   * or missed (OK and echo racing, snapshot chunks, a restart mid-send).
+   */
+  private async recountUnconfirmed(): Promise<void> {
+    const events = await this.store.groupEvents(this.groupId)
+    const n = events.filter((e) => this.isMine(e) && e.relays.length === 0).length
+    if (n !== this.unconfirmed) this.unconfirmed = n
+    this.emitStatus()
+  }
+
   // ---------- receiving ----------
 
   /** Handles one event from a relay (or a backup). Returns true if it was new. */
@@ -287,10 +298,7 @@ export class GroupSync {
       if (known) {
         if (relayUrl && !known.relays.includes(relayUrl)) {
           await this.store.addEventRelays(ev.id, [relayUrl])
-          if (known.relays.length === 0 && this.isMine(known)) {
-            this.unconfirmed = Math.max(0, this.unconfirmed - 1)
-            this.emitStatus()
-          }
+          if (known.relays.length === 0 && this.isMine(known)) void this.recountUnconfirmed()
         }
         return false
       }
@@ -416,8 +424,7 @@ export class GroupSync {
           batch.ops,
         )
         this.outboxCount = Math.max(0, this.outboxCount - batch.ops.length)
-        this.unconfirmed++
-        this.emitStatus()
+        await this.recountUnconfirmed()
         await this.publish(ev)
       }
       this.maybeSnapshot()
@@ -437,8 +444,10 @@ export class GroupSync {
     await Promise.all(
       targets.map(async (r) => {
         const res = await r.publish(ev, this.timing.publishTimeoutMs)
-        if (res.ok || res.message.startsWith('duplicate')) accepted.push(r.url)
-        else r.lastError = res.message
+        if (res.ok || res.message.startsWith('duplicate')) {
+          accepted.push(r.url)
+          r.lastError = ''
+        } else r.lastError = res.message || 'rejected'
       }),
     )
     if (!only && accepted.length < 2 && this.fallbackUrls.length) {
@@ -452,12 +461,8 @@ export class GroupSync {
         }),
       )
     }
-    if (accepted.length) {
-      const before = await this.store.getEvent(ev.id)
-      await this.store.addEventRelays(ev.id, accepted)
-      if (before && before.relays.length === 0 && this.isMine(before)) this.unconfirmed = Math.max(0, this.unconfirmed - 1)
-    }
-    this.emitStatus()
+    if (accepted.length) await this.store.addEventRelays(ev.id, accepted)
+    await this.recountUnconfirmed()
     return accepted
   }
 
@@ -509,6 +514,12 @@ export class GroupSync {
         const { events } = await relay.query([{ ids }])
         for (const ev of events) await this.receive(url, ev)
       }
+      // Every local event the relay didn't report missing is on that relay: record
+      // it, so an event whose OK got lost (timeout, dropped socket) is confirmed.
+      const missing = new Set(result.have)
+      const present = local.filter((e) => !missing.has(e.id) && !e.relays.includes(url))
+      for (const e of present) await this.store.addEventRelays(e.id, [url])
+      if (present.length) await this.recountUnconfirmed()
       this.enqueueRepair(url, result.have)
       this.lastReconcile.set(url, this.now())
       await this.saveCursors()
@@ -606,15 +617,15 @@ export class GroupSync {
     if (this.repairing.has(url)) return
     this.repairing.add(url)
     try {
-      const q = this.repairQueues.get(url) ?? []
-      const evs = (await Promise.all(q.map((id) => this.store.getEvent(id)))).filter((e): e is StoredEvent => !!e)
-      evs.sort((a, b) => a.event.created_at - b.event.created_at)
-      this.repairQueues.set(url, evs.map((e) => e.id))
       while ((this.repairQueues.get(url) ?? []).length) {
         const relay = this.relays.get(url)
         if (!relay || relay.status !== 'open') break
-        const id = this.repairQueues.get(url)!.shift()!
-        const ev = evs.find((e) => e.id === id)
+        // Oldest first; ids queued while this loop runs are picked up too.
+        const q = this.repairQueues.get(url)!
+        const evs = (await Promise.all(q.map((id) => this.store.getEvent(id)))).filter((e): e is StoredEvent => !!e)
+        evs.sort((a, b) => a.event.created_at - b.event.created_at)
+        const ev = evs[0]
+        this.repairQueues.set(url, evs.slice(1).map((e) => e.id))
         if (ev) await this.publish(ev.event, [url])
         this.emitStatus()
         if (this.timing.repairDelayMs) await new Promise((r) => setTimeout(r, this.timing.repairDelayMs))

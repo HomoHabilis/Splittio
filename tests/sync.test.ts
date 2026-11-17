@@ -27,7 +27,7 @@ let dbSeq = 0
 const GROUP_KEY = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))
 const GID = 'g-' + Math.random().toString(36).slice(2)
 
-async function device(relays: string[], opts: { skewMs?: number; fallbackRelays?: string[]; key?: string } = {}) {
+async function device(relays: string[], opts: { skewMs?: number; fallbackRelays?: string[]; key?: string; publishTimeoutMs?: number } = {}) {
   const store = await Store.open('test-' + ++dbSeq)
   const dev = deviceFromSecret(bytesToHex(generateSecretKey()))
   const now = () => Date.now() + (opts.skewMs ?? 0)
@@ -41,7 +41,7 @@ async function device(relays: string[], opts: { skewMs?: number; fallbackRelays?
     clock,
     now,
     fallbackRelays: opts.fallbackRelays ?? [],
-    timing: { repairDelayMs: 0, flushDelayMs: 0, reconcileEveryMs: 0 },
+    timing: { repairDelayMs: 0, flushDelayMs: 0, reconcileEveryMs: 0, ...(opts.publishTimeoutMs ? { publishTimeoutMs: opts.publishTimeoutMs } : {}) },
   })
   const factory = new OpFactory(GID, clock, dev.pubkey)
   cleanups.push(() => sync.stop())
@@ -277,6 +277,37 @@ describe('relay list from group ops', () => {
     expect(g!.relays[0]).toBe('wss://nos.lol')
     expect(g!.relays).toHaveLength(MAX_GROUP_RELAYS)
     expect(g!.relays.every((u) => /^wss?:\/\/[^/]+/.test(u))).toBe(true)
+  })
+})
+
+describe('confirmations', () => {
+  for (const nip77 of [true, false])
+    it(`an event whose OK never arrived is confirmed by the next reconciliation (${nip77 ? 'NIP-77' : 'paged'})`, async () => {
+      const r = await relay({ nip77, silent: true })
+      const a = await device([r.url], { publishTimeoutMs: 300 })
+      await a.sync.start()
+      await seed(a)
+      await until(() => r.events.size === 1)
+      // The relay has the event, but this phone never heard back.
+      await until(async () => (await a.store.groupEvents(GID)).length === 1 && a.sync.status().unconfirmed === 1)
+      await new Promise((res) => setTimeout(res, 400))
+      expect(a.sync.status().unconfirmed).toBe(1)
+      r.setSilent(false)
+      await a.sync.reconcile(r.url, true)
+      await until(() => a.sync.status().unconfirmed === 0)
+      expect((await a.store.groupEvents(GID))[0].relays).toEqual([r.url])
+    })
+
+  it('the waiting count always matches the stored events, across sends, snapshots and a restart', async () => {
+    const r1 = await relay()
+    const r2 = await relay({ nip77: true })
+    const a = await device([r1.url, r2.url])
+    await a.sync.start()
+    await seed(a)
+    for (let i = 0; i < 4; i++) await a.sync.addLocal([a.factory.op('expense', 'x' + i, { title: 'B' + i })])
+    await a.sync.publishSnapshot()
+    await until(async () => (await a.store.groupEvents(GID)).every((e) => e.relays.length > 0))
+    await until(() => a.sync.status().unconfirmed === 0)
   })
 })
 

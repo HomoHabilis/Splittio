@@ -20,14 +20,14 @@ function matches(f, ev) {
 }
 
 /**
- * @param {{ port?: number, nip77?: boolean, maxLimit?: number, reject?: boolean, quiet?: boolean }} opts
+ * @param {{ port?: number, nip77?: boolean, maxLimit?: number, reject?: boolean, silent?: boolean, quiet?: boolean }} opts
  */
 export function startRelay(opts = {}) {
   const { nip77 = true, maxLimit = 500 } = opts
   /** @type {Map<string, any>} */
   const events = new Map()
   const sockets = new Set()
-  const state = { reject: !!opts.reject, nip77 }
+  const state = { reject: !!opts.reject, silent: !!opts.silent, nip77 }
 
   const http = createServer((req, res) => {
     res.writeHead(200, {
@@ -84,6 +84,8 @@ export function startRelay(opts = {}) {
         }
         const dup = events.has(ev.id)
         events.set(ev.id, ev)
+        // silent: stores the event but the OK and the live echo never arrive (lost on a flaky network).
+        if (state.silent) return
         send(['OK', ev.id, true, dup ? 'duplicate:' : ''])
         if (!dup)
           for (const s of sockets) s.emit('broadcast', ev)
@@ -133,6 +135,10 @@ export function startRelay(opts = {}) {
         port,
         events,
         state,
+        /** Turn the silent mode on or off. */
+        setSilent(v) {
+          state.silent = v
+        },
         /** Forget events (simulates a relay dropping history). */
         drop(ids) {
           for (const id of ids ?? [...events.keys()]) events.delete(id)
