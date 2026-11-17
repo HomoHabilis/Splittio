@@ -110,6 +110,7 @@ export class GroupSync {
   private chain: Promise<unknown> = Promise.resolve()
   private flushTimer: ReturnType<typeof setTimeout> | null = null
   private flushing: Promise<void> | null = null
+  private flushAgain = false
   private started = false
   private outboxCount = 0
   private unconfirmed = 0
@@ -412,7 +413,11 @@ export class GroupSync {
    * `created_at` is fresh even for edits made offline hours ago.
    */
   flush(): Promise<void> {
-    if (this.flushing) return this.flushing
+    if (this.flushing) {
+      // Ops saved while a flush runs may be missed by it: run once more afterwards.
+      this.flushAgain = true
+      return this.flushing
+    }
     const run = async () => {
       if (this.openRelays().length === 0) return
       const ops = (await this.store.outbox(this.groupId)).sort((a, b) => (a.hlc < b.hlc ? -1 : 1))
@@ -432,6 +437,10 @@ export class GroupSync {
     // Clear the guard only after it was set (run() may finish synchronously).
     const p = run().finally(() => {
       if (this.flushing === p) this.flushing = null
+      if (this.flushAgain) {
+        this.flushAgain = false
+        void this.flush()
+      }
     })
     this.flushing = p
     return p
