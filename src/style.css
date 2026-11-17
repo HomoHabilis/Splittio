@@ -711,43 +711,89 @@ hr {
   border-left: 3px solid var(--line);
   color: var(--muted);
 }
-.flow {
+.journey {
   margin: 4px 0 18px;
 }
-.flow svg {
+.journey svg {
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   display: block;
   margin: 0 auto;
+  font-size: 8px;
 }
-.flow .node {
-  fill: var(--accent);
+.journey text {
+  text-anchor: middle;
+  fill: currentColor;
 }
-.flow .relay {
+.journey .j-phone {
   fill: var(--card);
-  stroke: var(--line);
-}
-.flow .wire {
   stroke: var(--accent);
   stroke-width: 1.5;
-  stroke-dasharray: 3 3;
-  fill: none;
 }
-.flow .label {
+.journey .j-name {
   font-size: 10px;
-  text-anchor: middle;
+  font-weight: 700;
+}
+.journey .j-name.small {
+  font-size: 9px;
+  font-weight: 400;
+  fill: var(--muted);
+}
+.journey .j-relay rect {
+  fill: var(--bg);
+  stroke: var(--line);
+}
+.journey .j-relay.down rect {
+  stroke-dasharray: 3 3;
+}
+.journey .j-relay.down text {
+  fill: var(--muted);
+}
+.journey .j-card rect {
+  fill: var(--accent);
+}
+.journey .j-card text {
   fill: var(--accent-ink);
   font-weight: 600;
 }
-.flow .label.small {
-  font-size: 9px;
-  fill: currentColor;
+.journey .j-card text.j-sub {
   font-weight: 400;
+  font-size: 7px;
 }
-.flow .label.muted {
+.journey .j-sub.strong {
+  font-weight: 700;
+  font-size: 7.5px;
+}
+.journey .j-env rect {
   fill: var(--muted);
 }
-.flow figcaption {
-  text-align: center;
-  margin-top: 4px;
+.journey .j-env.dim rect {
+  opacity: 0.85;
+}
+.journey .j-env text {
+  fill: var(--bg);
+  font-family: ui-monospace, monospace;
+  font-size: 7px;
+}
+.journey .j-key {
+  font-size: 7.5px;
+  fill: var(--accent);
+  font-weight: 600;
+}
+.journey .j-wire {
+  stroke: var(--accent);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+  fill: none;
+}
+.journey figcaption {
+  max-width: 440px;
+  margin: 6px auto 0;
+}
+.journey figcaption p {
+  min-height: 3.2em;
+  margin: 0 0 6px;
+}
+.journey .row {
+  justify-content: flex-end;
 }

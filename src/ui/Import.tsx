@@ -78,16 +78,103 @@ export function ImportPage() {
   )
 }
 
+const CIPHER = 'x9#Qm…T4f'
+
+/** Step-by-step scenario: Ann adds an expense, Bob receives it through relays that can't read it. */
+function Journey() {
+  const [step, setStep] = useState(0)
+  const steps = [
+    t('Ann and Bob share a group. Ann adds an expense: pizza, 24 €, paid by her.'),
+    t('Before it leaves, Ann’s phone locks it with the group key. Outside the group it is just noise.'),
+    t('The sealed envelope goes to several relays. They store it but can’t open it.'),
+    t('Bob’s phone fetches it from any relay that is up. One being down doesn’t matter.'),
+    t('Bob’s phone unlocks it with the same key. Both phones now show the same balances.'),
+  ]
+  const last = steps.length - 1
+  const card = (x: number, y: number) => (
+    <g class="j-card">
+      <rect x={x} y={y} width="76" height="30" rx="5" />
+      <text x={x + 38} y={y + 13}>🍕 Pizza · 24 €</text>
+      <text x={x + 38} y={y + 24} class="j-sub">
+        {t('paid by Ann')}
+      </text>
+    </g>
+  )
+  const envelope = (x: number, y: number, dim = false) => (
+    <g class={'j-env' + (dim ? ' dim' : '')}>
+      <rect x={x} y={y} width="62" height="22" rx="4" />
+      <text x={x + 31} y={y + 14}>🔒 {CIPHER}</text>
+    </g>
+  )
+  const relayY = [22, 70, 118]
+  return (
+    <figure class="journey">
+      <svg viewBox="0 0 340 170" role="img" aria-label={steps[step]}>
+        <rect x="2" y="6" width="96" height="150" rx="12" class="j-phone" />
+        <text x="50" y="22" class="j-name">Ann</text>
+        <rect x="242" y="6" width="96" height="150" rx="12" class="j-phone" />
+        <text x="290" y="22" class="j-name">Bob</text>
+        <text x="170" y="12" class="j-name small">{t('Relays')}</text>
+        {relayY.map((y, i) => (
+          <g key={y} class={'j-relay' + (step >= 3 && i === 0 ? ' down' : '')}>
+            <rect x="136" y={y} width="68" height="34" rx="6" />
+            {step >= 2 && !(step >= 3 && i === 0) && envelope(139, y + 6, true)}
+            {step >= 3 && i === 0 && <text x="170" y={y + 21}>✕ {t('offline')}</text>}
+            {step === 2 && <path d={`M98 100 L136 ${y + 17}`} class="j-wire" />}
+            {step === 3 && i === 1 && <path d={`M204 ${y + 17} L242 100`} class="j-wire" />}
+          </g>
+        ))}
+        {card(12, 34)}
+        {step >= 1 && step <= 2 && (
+          <text x="50" y="82" class="j-key">
+            ↓ 🔑 {t('group key')}
+          </text>
+        )}
+        {step >= 1 && step <= 2 && envelope(19, 90)}
+        {step >= 3 && envelope(259, 90, step >= 4)}
+        {step >= 4 && card(252, 34)}
+        {step >= 4 && (
+          <text x="290" y="82" class="j-key">
+            ↑ 🔑 {t('group key')}
+          </text>
+        )}
+        {step >= 4 &&
+          [50, 290].map((x) => (
+            <text key={x} x={x} y="140" class="j-sub strong">
+              {t('Bob owes Ann 12 €')}
+            </text>
+          ))}
+      </svg>
+      <figcaption>
+        <p class="small">
+          <strong>
+            {step + 1}/{steps.length}
+          </strong>{' '}
+          {steps[step]}
+        </p>
+        <div class="row">
+          <button class="btn small" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>
+            {t('Back')}
+          </button>
+          <button class="btn small primary" onClick={() => setStep(step === last ? 0 : step + 1)}>
+            {step === last ? t('Replay') : t('Next')}
+          </button>
+        </div>
+      </figcaption>
+    </figure>
+  )
+}
+
 export function About() {
   const points = [
-    { title: t('No server, no account'), text: t('Your groups live on your phones. There is no Splittio server, and nothing to sign up for.'), tech: t('Splittio is a static web app, served from GitHub Pages as plain files. All data stays in the browser’s IndexedDB: signed events, the operation log, the outbox and a sync cursor per relay. Nothing is sent to the site that serves the app.') },
-    { title: t('Locked before it leaves your phone'), text: t('Every change is locked with the group’s key on your phone before it is sent. Only people in the group can unlock it.'), tech: t('Changes are grouped into batches, compressed (deflate) and encrypted with NIP-44 v2 (ChaCha20 with an HMAC-SHA256 check). The encryption key is derived from the group’s 256-bit key with HMAC. Each batch is published as a Nostr event of kind 30078.') },
-    { title: t('Relays are shared mailboxes'), text: t('Changes travel through a few public relays, mailboxes run by volunteers. They pass along sealed envelopes they can’t open. Several are used at once, so one going down doesn’t matter.'), tech: t('Relays speak the Nostr protocol (NIP-01). Each event goes to all of the group’s relays, and to fallback relays when fewer than two accept it. Phones subscribe by an opaque tag (an HMAC of the group key) and catch up by comparing event ids with each relay, using NIP-77 (negentropy) or paged queries.') },
-    { title: t('The invite link is the key'), text: t('The invite link contains the group’s key. Whoever has it can see and edit the group, so share it like a password. If it leaks, “Re-key group” moves the group to a new key.'), tech: t('The key sits in the URL fragment (after #), which browsers never send to the web server, and it is removed from the address bar after joining. Re-keying creates a new group with a new key and relay tag and copies everything into it; you then share the new link with the people who should stay.') },
-    { title: t('Works offline, merges by itself'), text: t('Add expenses without a connection: they are saved on your phone and sent later. If two people edit at the same time, each field keeps the latest edit, and every phone ends up with the same result.'), tech: t('Each change is an operation that sets some fields of one item, stamped with a hybrid logical clock (time, counter and device). Phones combine all operations with a per-field “last writer wins” rule (a CRDT), so the order they arrive in doesn’t matter. Amount, currency and split form a single field so they never get mixed. Changes dated more than an hour in the future wait until the local clock catches up.') },
-    { title: t('Hard to trace'), text: t('Relays can’t read names, amounts or the group name. Each batch of changes is signed with a brand-new key, so the signature doesn’t reveal which phone sent it.'), tech: t('Every event is signed by a throwaway key made for that one event. The device’s own key and its signature over the batch travel inside the encrypted content, so members still see which device made each change. Relays still see the group’s opaque tag, when changes are sent, and the internet address of each phone that connects, which could let a relay guess that several changes came from the same phone.') },
-    { title: t('Nothing gets lost'), text: t('Each phone keeps the whole history and quietly re-sends anything a relay has forgotten. You can also save an encrypted backup.'), tech: t('Phones regularly compare their event ids with each relay and re-publish what a relay is missing, a few at a time. Every 200 changes, a phone publishes a snapshot of the group so new members don’t need the full history. Backups are encrypted with your password (PBKDF2 with 600,000 rounds, then AES-GCM).') },
-    { title: t('Members trust each other'), text: t('Like a shared notebook, anyone in the group can edit or delete anything. The activity log shows who changed what, from which device, and lets you undo it.'), tech: t('Batches carry a device signature that every member checks, so each change can be traced to a device. But anyone with the key can create a new device and claim to be any participant: signatures make changes traceable, they don’t prevent impersonation. The activity log flags devices it hasn’t seen before.') },
+    { title: t('No server, no account'), text: t('Your groups live only on your phones.'), tech: t('Splittio is a static web app, served from GitHub Pages as plain files. All data stays in the browser’s IndexedDB: signed events, the operation log, the outbox and a sync cursor per relay. Nothing is sent to the site that serves the app.') },
+    { title: t('Locked before it leaves your phone'), text: t('Each change is encrypted on your phone. Only group members can read it.'), tech: t('Changes are grouped into batches, compressed (deflate) and encrypted with NIP-44 v2 (ChaCha20 with an HMAC-SHA256 check). The encryption key is derived from the group’s 256-bit key with HMAC. Each batch is published as a Nostr event of kind 30078.') },
+    { title: t('Relays are shared mailboxes'), text: t('Public relays pass along sealed envelopes they can’t open. Several are used, in case one is down.'), tech: t('Relays speak the Nostr protocol (NIP-01). Each event goes to all of the group’s relays, and to fallback relays when fewer than two accept it. Phones subscribe by an opaque tag (an HMAC of the group key) and catch up by comparing event ids with each relay, using NIP-77 (negentropy) or paged queries.') },
+    { title: t('The invite link is the key'), text: t('Share it like a password. If it leaks, re-key the group.'), tech: t('The key sits in the URL fragment (after #), which browsers never send to the web server, and it is removed from the address bar after joining. Re-keying creates a new group with a new key and relay tag and copies everything into it; you then share the new link with the people who should stay.') },
+    { title: t('Works offline, merges by itself'), text: t('Changes are sent once you’re back online, and edits merge by themselves.'), tech: t('Each change is an operation that sets some fields of one item, stamped with a hybrid logical clock (time, counter and device). Phones combine all operations with a per-field “last writer wins” rule (a CRDT), so the order they arrive in doesn’t matter. Amount, currency and split form a single field so they never get mixed. Changes dated more than an hour in the future wait until the local clock catches up.') },
+    { title: t('Hard to trace'), text: t('Each batch is signed with a new key, so relays can’t tell which phone sent it.'), tech: t('Every event is signed by a throwaway key made for that one event. The device’s own key and its signature over the batch travel inside the encrypted content, so members still see which device made each change. Relays still see the group’s opaque tag, when changes are sent, and the internet address of each phone that connects, which could let a relay guess that several changes came from the same phone.') },
+    { title: t('Nothing gets lost'), text: t('Every phone keeps the full history and re-sends what relays forget.'), tech: t('Phones regularly compare their event ids with each relay and re-publish what a relay is missing, a few at a time. Every 200 changes, a phone publishes a snapshot of the group so new members don’t need the full history. Backups are encrypted with your password (PBKDF2 with 600,000 rounds, then AES-GCM).') },
+    { title: t('Members trust each other'), text: t('Anyone in the group can edit anything. The activity log shows who did what.'), tech: t('Batches carry a device signature that every member checks, so each change can be traced to a device. But anyone with the key can create a new device and claim to be any participant: signatures make changes traceable, they don’t prevent impersonation. The activity log flags devices it hasn’t seen before.') },
   ]
   return (
     <main class="page prose about">
@@ -97,27 +184,8 @@ export function About() {
         </a>
         <h1>{t('How it works')}</h1>
       </header>
-      <p>{t('Splittio is built so that no company, including us, ever holds your group’s data. Tap “Technical details” under any point for the full picture.')}</p>
-      <figure class="flow">
-        <svg viewBox="0 0 340 120" role="img" aria-labelledby="flow-cap">
-          <rect x="2" y="34" width="86" height="52" rx="10" class="node" />
-          <text x="45" y="64" class="label">{t('Your phone')}</text>
-          <rect x="252" y="34" width="86" height="52" rx="10" class="node" />
-          <text x="295" y="64" class="label">{t('Their phone')}</text>
-          {[18, 54, 90].map((y) => (
-            <g key={y}>
-              <rect x="138" y={y - 12} width="64" height="24" rx="6" class="relay" />
-              <path d={`M88 60 L138 ${y}`} class="wire" />
-              <path d={`M202 ${y} L252 60`} class="wire" />
-            </g>
-          ))}
-          <text x="170" y="58" class="label small">{t('Relays')}</text>
-          <text x="170" y="116" class="label small muted">🔒 {t('locked with the group key')}</text>
-        </svg>
-        <figcaption id="flow-cap" class="small muted">
-          {t('How a change travels: locked on your phone, passed on by several relays that can’t read it, unlocked on the other members’ phones.')}
-        </figcaption>
-      </figure>
+      <p>{t('No company, us included, ever holds your group’s data.')}</p>
+      <Journey />
       <ul class="points">
         {points.map((p) => (
           <li key={p.title}>
