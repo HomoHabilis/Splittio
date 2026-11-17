@@ -690,3 +690,64 @@ hr {
   color: var(--accent-ink);
   font-weight: 700;
 }
+.about .points {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: grid;
+  gap: 14px;
+}
+.about .points li {
+  line-height: 1.45;
+}
+.about details summary {
+  color: var(--accent);
+  cursor: pointer;
+  margin-top: 4px;
+}
+.about details p {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--line);
+  color: var(--muted);
+}
+.flow {
+  margin: 4px 0 18px;
+}
+.flow svg {
+  width: 100%;
+  max-width: 420px;
+  display: block;
+  margin: 0 auto;
+}
+.flow .node {
+  fill: var(--accent);
+}
+.flow .relay {
+  fill: var(--card);
+  stroke: var(--line);
+}
+.flow .wire {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+  fill: none;
+}
+.flow .label {
+  font-size: 10px;
+  text-anchor: middle;
+  fill: var(--accent-ink);
+  font-weight: 600;
+}
+.flow .label.small {
+  font-size: 9px;
+  fill: currentColor;
+  font-weight: 400;
+}
+.flow .label.muted {
+  fill: var(--muted);
+}
+.flow figcaption {
+  text-align: center;
+  margin-top: 4px;
+}
