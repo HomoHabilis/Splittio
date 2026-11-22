@@ -20,11 +20,11 @@ The probe event is shaped like a Splittio batch: kind 30078, `d` and `z` tags, ~
 
 Resulting lists (`src/sync/relays.ts`):
 
-- **Default:** nos.lol, relay.primal.net, relay.snort.social, relay.nostr.wirednet.jp, nostr.data.haus
-- **Fallback:** nostr.oxtr.dev, nostr.mom, nostr.sathoarder.com
-- **Extras (selectable):** purplerelay.com, nostr.bitcoiner.social, offchain.pub, nostr-pub.wellorder.net
+- **Default:** nos.lol, relay.primal.net, relay.nostr.wirednet.jp, nostr.data.haus, nostr.oxtr.dev
+- **Fallback:** nostr.mom, nostr.sathoarder.com
+- **Extras (selectable):** relay.snort.social, purplerelay.com, nostr.bitcoiner.social, offchain.pub, nostr-pub.wellorder.net
 
-(Updated after the burst test below: nostr.bitcoiner.social left the defaults.)
+(Updated after the burst test below: nostr.bitcoiner.social left the defaults; after the 7-day check, relay.snort.social did too.)
 
 Retention checks after 24 h and 7 days: run the "Relay survey" workflow manually with
 `recheck_run_id = 43713531163`.
@@ -41,8 +41,23 @@ Each relay that accepted the probe was asked for it again by id:
 | nostr.bitcoiner.social | **gone** |
 
 Every default and fallback relay kept the event. nostr.bitcoiner.social dropped it within a day,
-which matches the burst test below: it already moved to the extras. The 7-day check is due on
-22 Nov 2026.
+which matches the burst test below: it already moved to the extras.
+
+### 7-day retention check (22 Nov 2026, run 45022648245)
+
+| Relay | 24 h | 7 days |
+|---|---|---|
+| nos.lol, relay.primal.net, nostr.data.haus, relay.nostr.wirednet.jp | kept | kept |
+| nostr.oxtr.dev, nostr.mom, nostr.sathoarder.com | kept | kept |
+| purplerelay.com | kept | kept |
+| relay.snort.social | kept | **gone** |
+| nostr.bitcoiner.social | gone | kept (it answered the 24 h query without the event) |
+
+relay.snort.social runs memlay, an in-memory relay, and lost the event within a week. It moved
+from the defaults to the extras, replaced by nostr.oxtr.dev (kept at 24 h and 7 days, NIP-77; its
+per-pubkey rate limit doesn't apply with a new key per event). The fallbacks are now nostr.mom and
+nostr.sathoarder.com. Groups created before this keep their relay list, and phones re-publish
+anything a relay forgets, so existing groups using relay.snort.social keep working.
 
 ## Burst test: stable key vs. a new key per event (15 Nov 2026)
 

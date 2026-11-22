@@ -13,14 +13,15 @@
 export const DEFAULT_RELAYS = [
   'wss://nos.lol',
   'wss://relay.primal.net',
-  'wss://relay.snort.social',
   'wss://relay.nostr.wirednet.jp',
   'wss://nostr.data.haus',
+  'wss://nostr.oxtr.dev',
 ]
 
-export const FALLBACK_RELAYS = ['wss://nostr.oxtr.dev', 'wss://nostr.mom', 'wss://nostr.sathoarder.com']
+export const FALLBACK_RELAYS = ['wss://nostr.mom', 'wss://nostr.sathoarder.com']
 
 export const EXTRA_RELAYS = [
+  'wss://relay.snort.social',
   'wss://purplerelay.com',
   'wss://nostr.bitcoiner.social',
   'wss://offchain.pub',
